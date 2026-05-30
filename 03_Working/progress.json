@@ -1,0 +1,157 @@
+{
+  "project": "AI 근로계약서 도우미 MVP",
+  "updatedAt": "2026-05-31",
+  "status": "planning",
+  "currentBaseline": {
+    "ideaDocument": "01_Idea/idea_.md",
+    "targetUser": "한국어 근로계약서를 혼자 확인해야 하는 외국인 근로자",
+    "platform": "React Native + Expo Android app",
+    "backend": "FastAPI",
+    "ocr": "TODO: choose Naver CLOVA OCR or Google Vision API",
+    "ai": "OpenAI API",
+    "storage": "No DB in MVP"
+  },
+  "documents": {
+    "agents": {
+      "path": "AGENTS.md",
+      "status": "done"
+    },
+    "ideaReview": {
+      "path": "01_Idea/2026-05-31_idea_review.md",
+      "status": "done"
+    },
+    "prd": {
+      "path": "03_Working/PRD.md",
+      "status": "draft"
+    },
+    "roadmap": {
+      "path": "03_Working/roadmap.md",
+      "status": "draft"
+    }
+  },
+  "milestones": [
+    {
+      "id": "M0",
+      "name": "기준 고정",
+      "status": "in_progress",
+      "tasks": [
+        {
+          "id": "M0-T1",
+          "title": "대상 사용자와 개발 기준 문서화",
+          "status": "done"
+        },
+        {
+          "id": "M0-T2",
+          "title": "샘플 근로계약서 1장 확보",
+          "status": "todo"
+        },
+        {
+          "id": "M0-T3",
+          "title": "샘플 분석 JSON 작성",
+          "status": "todo"
+        },
+        {
+          "id": "M0-T4",
+          "title": "OCR API 선택",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "앱 기본 골격",
+      "status": "todo",
+      "tasks": [
+        {
+          "id": "M1-T1",
+          "title": "Expo + TypeScript 프로젝트 생성",
+          "status": "todo"
+        },
+        {
+          "id": "M1-T2",
+          "title": "홈/이미지 선택/분석중/결과 화면 더미 구현",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "FastAPI 서버",
+      "status": "todo",
+      "tasks": [
+        {
+          "id": "M2-T1",
+          "title": "/health 구현",
+          "status": "todo"
+        },
+        {
+          "id": "M2-T2",
+          "title": "/analyze-contract 이미지 업로드 구현",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "OCR + AI 연결",
+      "status": "todo",
+      "tasks": [
+        {
+          "id": "M3-T1",
+          "title": "OCR API 연결",
+          "status": "todo"
+        },
+        {
+          "id": "M3-T2",
+          "title": "OpenAI 분석 JSON 생성",
+          "status": "todo"
+        },
+        {
+          "id": "M3-T3",
+          "title": "JSON 스키마 검증과 오류 처리",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "데모 안정화와 제출",
+      "status": "todo",
+      "tasks": [
+        {
+          "id": "M4-T1",
+          "title": "샘플 모드 구현",
+          "status": "todo"
+        },
+        {
+          "id": "M4-T2",
+          "title": "Android 빌드 또는 실행 영상 준비",
+          "status": "todo"
+        },
+        {
+          "id": "M4-T3",
+          "title": "1분 데모 영상 촬영",
+          "status": "todo"
+        }
+      ]
+    }
+  ],
+  "openQuestions": [
+    "현재 개발 기준을 외국인 근로자 방향으로 최종 고정할지 확인",
+    "OCR API를 Naver CLOVA OCR과 Google Vision API 중 무엇으로 선택할지 결정",
+    "첫 데모 언어를 한국어+영어+베트남어 모두로 할지 결정",
+    "표준근로계약서 샘플 출처 확인",
+    "상담기관 명칭과 연락처 확인"
+  ],
+  "blockers": [
+    "샘플 근로계약서와 정답 JSON이 아직 없음",
+    "OCR API가 아직 선택되지 않음",
+    "외부 근거 자료가 아직 확인되지 않음"
+  ],
+  "nextActions": [
+    "샘플 근로계약서 1장 확보",
+    "샘플 분석 JSON 수동 작성",
+    "OCR API 선택 후 키 발급 가능 여부 확인",
+    "Expo 프로젝트 생성"
+  ]
+}
