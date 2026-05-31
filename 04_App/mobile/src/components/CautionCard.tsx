@@ -1,13 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { colors, levelColors, radius, shadow, spacing } from '@/constants/theme';
 import type { LabelSet } from '@/constants/labels';
-import type { CautionItem, CautionLevel, Language } from '@/data/sampleAnalysis';
-
-const LEVEL_STYLE: Record<CautionLevel, { color: string; bg: string }> = {
-  check: { color: '#B42318', bg: '#FEF3F2' },
-  review: { color: '#B54708', bg: '#FFFAEB' },
-  info: { color: '#175CD3', bg: '#EFF8FF' },
-};
+import type { CautionItem, Language } from '@/data/sampleAnalysis';
 
 function pickExplanation(item: CautionItem, language: Language): string {
   if (language === 'en') return item.explanationEn;
@@ -24,20 +19,20 @@ export function CautionCard({
   language: Language;
   labels: LabelSet;
 }) {
-  const level = LEVEL_STYLE[item.level];
+  const lv = levelColors[item.level];
 
   return (
-    <View style={[styles.card, { borderLeftColor: level.color }]}>
+    <View style={styles.card}>
       <View style={styles.header}>
-        <View style={[styles.badge, { backgroundColor: level.bg }]}>
-          <Text style={[styles.badgeText, { color: level.color }]}>{labels.levels[item.level]}</Text>
+        <View style={[styles.badge, { backgroundColor: lv.bg }]}>
+          <Text style={[styles.badgeText, { color: lv.fg }]}>{labels.levels[item.level]}</Text>
         </View>
         <Text style={styles.title}>{item.title}</Text>
       </View>
 
-      <View style={styles.originalBox}>
-        <Text style={styles.originalLabel}>{labels.original}</Text>
-        <Text style={styles.originalText}>“{item.originalText}”</Text>
+      <View style={styles.quote}>
+        <Text style={styles.quoteLabel}>{labels.original}</Text>
+        <Text style={styles.quoteText}>“{item.originalText}”</Text>
       </View>
 
       <Text style={styles.explanation}>{pickExplanation(item, language)}</Text>
@@ -46,54 +41,13 @@ export function CautionCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    borderLeftWidth: 4,
-    padding: 16,
-    gap: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  title: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#101828',
-  },
-  originalBox: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 10,
-    gap: 4,
-  },
-  originalLabel: {
-    fontSize: 11,
-    color: '#98A2B3',
-    fontWeight: '600',
-  },
-  originalText: {
-    fontSize: 13,
-    color: '#475467',
-    lineHeight: 19,
-  },
-  explanation: {
-    fontSize: 14,
-    color: '#101828',
-    lineHeight: 21,
-  },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, ...shadow.card },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 7 },
+  badgeText: { fontSize: 11, fontWeight: '800' },
+  title: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
+  quote: { backgroundColor: colors.bgElevated, borderRadius: radius.md, padding: spacing.md, gap: 4 },
+  quoteLabel: { fontSize: 10, fontWeight: '700', color: colors.textTertiary },
+  quoteText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
+  explanation: { fontSize: 14, color: colors.text, lineHeight: 22, fontWeight: '500' },
 });

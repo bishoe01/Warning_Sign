@@ -1,8 +1,11 @@
+import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { analyzeContract } from '@/api/contractApi';
+import { colors, spacing } from '@/constants/theme';
 import { sampleAnalysis } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
 
@@ -19,6 +22,19 @@ const STEP_MS = 900;
 export default function LoadingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+
+  // 중앙 아이콘 펄스 링 애니메이션
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,45 +79,48 @@ export default function LoadingScreen() {
     };
   }, [router]);
 
+  const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
+  const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] });
+
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#208AEF" />
-      <Text style={styles.step}>{STEPS[step]}</Text>
-      <View style={styles.dots}>
-        {STEPS.map((label, index) => (
-          <View key={label} style={[styles.dot, index <= step && styles.dotActive]} />
-        ))}
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.container}>
+        <View style={styles.iconWrap}>
+          <Animated.View
+            style={[styles.ring, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
+          />
+          <View style={styles.badge}>
+            <Feather name="file-text" size={32} color={colors.white} />
+          </View>
+        </View>
+
+        <Text style={styles.step}>{STEPS[step]}</Text>
+
+        <View style={styles.progress}>
+          {STEPS.map((label, index) => (
+            <View key={label} style={[styles.segment, index <= step && styles.segmentActive]} />
+          ))}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  safe: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxxl, gap: spacing.xxl },
+  iconWrap: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
+  ring: { position: 'absolute', width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primary },
+  badge: {
+    width: 80,
+    height: 80,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 20,
-    backgroundColor: '#F9FAFB',
   },
-  step: {
-    fontSize: 16,
-    color: '#344054',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D0D5DD',
-  },
-  dotActive: {
-    backgroundColor: '#208AEF',
-  },
+  step: { fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center', lineHeight: 25 },
+  progress: { flexDirection: 'row', gap: 6, width: 160 },
+  segment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  segmentActive: { backgroundColor: colors.primary },
 });

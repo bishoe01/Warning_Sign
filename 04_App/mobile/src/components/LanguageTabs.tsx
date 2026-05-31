@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { colors, radius, shadow } from '@/constants/theme';
 import type { Language } from '@/data/sampleAnalysis';
 
 const TABS: { key: Language; label: string }[] = [
@@ -33,34 +34,9 @@ export function LanguageTabs({
 }
 
 const styles = StyleSheet.create({
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: '#F2F4F7',
-    borderRadius: 10,
-    padding: 4,
-    gap: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#101828',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  tabText: {
-    fontSize: 13,
-    color: '#667085',
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: '#101828',
-    fontWeight: '600',
-  },
+  tabs: { flexDirection: 'row', backgroundColor: colors.border, borderRadius: radius.md, padding: 3 },
+  tab: { flex: 1, paddingVertical: 9, borderRadius: radius.sm + 1, alignItems: 'center' },
+  tabActive: { backgroundColor: colors.surface, ...shadow.card },
+  tabText: { fontSize: 13, color: colors.textTertiary, fontWeight: '600' },
+  tabTextActive: { color: colors.text, fontWeight: '800' },
 });

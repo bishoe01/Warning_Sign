@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { colors, radius, shadow, spacing } from '@/constants/theme';
 import type { LabelSet } from '@/constants/labels';
 import type { Summary } from '@/data/sampleAnalysis';
 
@@ -15,9 +16,7 @@ export function SummaryCard({ summary, labels }: { summary: Summary; labels: Lab
   return (
     <View style={styles.card}>
       {rows.map((row, index) => (
-        <View
-          key={row.label}
-          style={[styles.row, index < rows.length - 1 && styles.rowBorder]}>
+        <View key={row.label} style={[styles.row, index < rows.length - 1 && styles.rowBorder]}>
           <Text style={styles.label}>{row.label}</Text>
           <Text style={styles.value}>{row.value}</Text>
         </View>
@@ -27,32 +26,9 @@ export function SummaryCard({ summary, labels }: { summary: Summary; labels: Lab
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EAECF0',
-    paddingHorizontal: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    gap: 12,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F4F7',
-  },
-  label: {
-    width: 84,
-    fontSize: 14,
-    color: '#667085',
-    fontWeight: '500',
-  },
-  value: {
-    flex: 1,
-    fontSize: 14,
-    color: '#101828',
-    lineHeight: 20,
-  },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.lg, ...shadow.card },
+  row: { flexDirection: 'row', paddingVertical: 13, gap: spacing.md, alignItems: 'flex-start' },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.bg },
+  label: { width: 64, fontSize: 13, color: colors.textTertiary, fontWeight: '600' },
+  value: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '700', lineHeight: 20 },
 });
