@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { analyzeContract } from '@/api/contractApi';
 import { colors, spacing } from '@/constants/theme';
+import * as historyStore from '@/data/historyStore';
 import { sampleAnalysis } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
 
@@ -67,7 +68,7 @@ export default function LoadingScreen() {
       }
       if (cancelled) return;
       session.setResult(result);
-      // (Task 7) historyStore.save(result, uris, { isSample });
+      void historyStore.save(result, uris, { isSample }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
       const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
       timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, wait));
     })();
