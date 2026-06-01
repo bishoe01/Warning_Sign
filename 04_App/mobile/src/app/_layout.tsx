@@ -20,6 +20,7 @@ export default function RootLayout() {
           <Stack.Screen name="select" />
           <Stack.Screen name="loading" options={{ gestureEnabled: false }} />
           <Stack.Screen name="result" />
+          <Stack.Screen name="history" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
