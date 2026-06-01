@@ -16,6 +16,11 @@ export default function HomeScreen() {
             <Feather name="file-text" size={15} color={colors.white} />
           </View>
           <Text style={styles.brandName}>근로계약 도우미</Text>
+          <View style={{ flex: 1 }} />
+          <Pressable style={styles.historyEntry} hitSlop={8} onPress={() => router.push('/history')}>
+            <Feather name="clock" size={15} color={colors.textSecondary} />
+            <Text style={styles.historyEntryText}>내 기록</Text>
+          </Pressable>
         </View>
 
         <View style={styles.headlineBlock}>
@@ -66,6 +71,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   brandName: { fontSize: 13, fontWeight: '800', color: colors.text },
+  historyEntry: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: colors.bgElevated, borderRadius: 999 },
+  historyEntryText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
   headlineBlock: { marginTop: spacing.xxxl },
   headline: { fontSize: 25, fontWeight: '800', color: colors.text, lineHeight: 34 },
   sub: { marginTop: spacing.md, fontSize: 14, fontWeight: '500', color: colors.textSecondary, lineHeight: 22 },
