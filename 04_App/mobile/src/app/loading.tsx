@@ -54,11 +54,11 @@ export default function LoadingScreen() {
 
     // 서버에 분석 요청. 실패하면 로컬 샘플로 폴백(데모가 끊기지 않게).
     void (async () => {
-      const uri = session.getImage();
+      const uris = session.getImages();
       let result = sampleAnalysis;
       try {
-        if (uri) {
-          result = await analyzeContract(uri, 'ko');
+        if (uris.length > 0) {
+          result = await analyzeContract(uris, 'ko');
         }
       } catch {
         result = sampleAnalysis;

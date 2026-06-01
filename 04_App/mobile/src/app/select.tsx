@@ -54,7 +54,7 @@ export default function CaptureScreen() {
 
   const analyze = () => {
     if (!photoUri) return;
-    session.setImage(photoUri);
+    session.setImages([photoUri]);
     router.push('/loading');
   };
 
