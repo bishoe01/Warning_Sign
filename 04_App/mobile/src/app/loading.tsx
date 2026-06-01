@@ -9,19 +9,19 @@ import { colors, spacing } from '@/constants/theme';
 import { sampleAnalysis } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
 
-// idea_.md 10절: 분석 중 단계별 안내 문구
-const STEPS = [
-  '계약서 이미지를 업로드하고 있어요.',
-  'OCR로 계약서 문장을 읽고 있어요.',
-  'AI가 임금·근무시간·휴일 조건을 분석하고 있어요.',
-  '확인이 필요한 조항을 쉬운 문장으로 정리하고 있어요.',
-];
-
 const STEP_MS = 900;
 
 export default function LoadingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+
+  const pageCount = session.getImages().length;
+  const STEPS = [
+    '계약서 이미지를 업로드하고 있어요.',
+    pageCount > 1 ? `${pageCount}장을 읽고 있어요. 장수가 많으면 조금 더 걸려요.` : 'OCR로 계약서 문장을 읽고 있어요.',
+    'AI가 임금·근무시간·휴일 조건을 분석하고 있어요.',
+    '확인이 필요한 조항을 쉬운 문장으로 정리하고 있어요.',
+  ];
 
   // 중앙 아이콘 펄스 링 애니메이션
   const pulse = useRef(new Animated.Value(0)).current;
@@ -56,21 +56,20 @@ export default function LoadingScreen() {
     void (async () => {
       const uris = session.getImages();
       let result = sampleAnalysis;
+      let isSample = uris.length === 0; // 이미지 없으면 샘플
       try {
         if (uris.length > 0) {
           result = await analyzeContract(uris, 'ko');
         }
       } catch {
         result = sampleAnalysis;
+        isSample = true; // 서버 실패 → 샘플 폴백
       }
       if (cancelled) return;
       session.setResult(result);
+      // (Task 7) historyStore.save(result, uris, { isSample });
       const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
-      timers.push(
-        setTimeout(() => {
-          if (!cancelled) router.replace('/result');
-        }, wait),
-      );
+      timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, wait));
     })();
 
     return () => {
