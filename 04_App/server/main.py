@@ -1,5 +1,7 @@
 """AI 근로계약서 도우미 API.
 실행: server 폴더에서  uvicorn main:app --reload --port 8000"""
+from typing import List
+
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -32,19 +34,24 @@ def health():
 
 @app.post("/analyze-contract", response_model=AnalysisResult)
 async def analyze_contract(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     language: str = Form("ko"),
 ):
     if language not in ("ko", "en", "vi"):
         language = "ko"
 
-    image_bytes = await file.read()
-    ocr_text = run_ocr(image_bytes)
+    texts = []
+    total_bytes = 0
+    for f in files:
+        data = await f.read()
+        total_bytes += len(data)
+        texts.append(run_ocr(data))
+    ocr_text = "\n\n".join(t for t in texts if t)  # 페이지 구분으로 합치기
     result = analyze(ocr_text, language)
 
-    # 안전: 계약서 이미지/원문은 저장하지 않고 로그에도 남기지 않는다 (크기/모드만 기록).
+    # 안전: 계약서 이미지/원문은 저장·로그 X (페이지 수/총 바이트/모드만)
     print(
-        f"[analyze] lang={language} bytes={len(image_bytes)} "
+        f"[analyze] lang={language} pages={len(files)} bytes={total_bytes} "
         f"ocr={'real' if config.USE_REAL_OCR else 'sample'} "
         f"ai={'real' if config.USE_REAL_AI else 'sample'}"
     )
