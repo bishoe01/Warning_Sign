@@ -11,7 +11,7 @@
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 설계 합의 완료(2026-06-01_phase8_저장재열람_spec.md), 구현 대기. 다음: M6 구현 → M7 다국어. 데모/제출물(M4) 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 설계 spec + 구현계획 plan 완료(03_Working/2026-06-01_phase8_저장재열람_{spec,plan}.md), 구현 착수 대기. 다음: plan Task 1부터 → M7 다국어. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "documents": {
@@ -136,7 +136,7 @@
     "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)"
   ],
   "nextActions": [
-    "[다음 세션] Phase 8 / M6 구현: 멀티페이지 + 저장·재열람 (설계 합의 완료 → writing-plans). PRD F-12·F-13·F-16",
+    "[다음 세션] Phase 8 / M6 구현 착수: 2026-06-01_phase8_저장재열람_plan.md 의 Task 1(의존성)부터 순서대로 11개 Task. spec+plan 완료, 실행만 남음. PRD F-12·F-13·F-16",
     "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 국가/언어 선택 (PRD F-14·F-15)",
     "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",
     "실제 표준근로계약서 샘플로 데모 데이터/정답 JSON 교체",
