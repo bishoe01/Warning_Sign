@@ -11,7 +11,7 @@
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M2+M3 완료: 서버 OCR+AI 실제 동작 end-to-end 검증. 실기기/실사진 데모와 제출물 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 설계 합의 완료(2026-06-01_phase8_저장재열람_spec.md), 구현 대기. 다음: M6 구현 → M7 다국어. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "documents": {
@@ -20,7 +20,8 @@
     "prd": { "path": "03_Working/PRD.md", "status": "draft" },
     "roadmap": { "path": "03_Working/roadmap.md", "status": "draft" },
     "phase1Spec": { "path": "03_Working/2026-05-31_phase1_app_skeleton_spec.md", "status": "active" },
-    "backendDecisions": { "path": "03_Working/2026-05-31_backend_decisions.md", "status": "done" }
+    "backendDecisions": { "path": "03_Working/2026-05-31_backend_decisions.md", "status": "done" },
+    "uiRedesign": { "path": "03_Working/2026-06-01_UI리디자인_결정.md", "status": "done" }
   },
   "milestones": [
     {
@@ -74,9 +75,59 @@
         { "id": "M4-T2", "title": "Android 빌드 또는 실행 영상 준비", "status": "todo" },
         { "id": "M4-T3", "title": "1분 데모 영상 촬영", "status": "todo" }
       ]
+    },
+    {
+      "id": "M5",
+      "name": "앱 UI 리디자인 + 인앱 카메라",
+      "status": "done",
+      "notes": "Toss 톤 디자인 토큰(theme.ts)+SafeArea, 홈/로딩/결과 리디자인, expo-camera 인앱 스캐너(A4 뷰파인더). tsc+iOS 번들 통과, 시뮬레이터 화면 확인. 색 최종확정 TODO. 상세: 2026-06-01_UI리디자인_결정.md",
+      "tasks": [
+        { "id": "M5-T1", "title": "디자인 토큰 + SafeArea", "status": "done" },
+        { "id": "M5-T2", "title": "홈/로딩/결과 Toss 리디자인", "status": "done" },
+        { "id": "M5-T3", "title": "인앱 카메라 스캐너(expo-camera)", "status": "done" },
+        { "id": "M5-T4", "title": "색상 팔레트 최종 확정", "status": "todo" }
+      ]
+    },
+    {
+      "id": "M6",
+      "name": "분석 결과 저장·재열람 + 멀티페이지",
+      "status": "todo",
+      "notes": "1회성 탈피 + 멀티페이지. 여러 장 촬영→서버 장별 OCR 합쳐 분석→로컬 저장(계정/서버 X)→목록·재열람·삭제. 설계 합의: 2026-06-01_phase8_저장재열람_spec.md. PRD F-12·F-13·F-16.",
+      "tasks": [
+        { "id": "M6-T1", "title": "멀티페이지 캡처(select.tsx)+멀티 업로드+서버 장별 OCR 합치기", "status": "todo" },
+        { "id": "M6-T2", "title": "로컬 저장(historyStore: AsyncStorage+expo-file-system, 이미지 N장)", "status": "todo" },
+        { "id": "M6-T3", "title": "내역 목록 + 상세 재열람(+계약서 이미지 보기)", "status": "todo" },
+        { "id": "M6-T4", "title": "삭제(개별 스와이프+보이는 보조/전체)", "status": "todo" },
+        { "id": "M6-T5", "title": "흐름 UX(멀티 로딩 문구·저장됨 안내·결과 후 홈/목록 분기·샘플 배지)", "status": "todo" }
+      ]
+    },
+    {
+      "id": "M7",
+      "name": "다국어 확장 + 마이페이지(국가/언어)",
+      "status": "todo",
+      "notes": "값까지 번역 + 국가 선택(14개국)으로 한국어/영어/모국어. PRD F-14·F-15.",
+      "tasks": [
+        { "id": "M7-T1", "title": "마이페이지 국가 선택 + 로컬 저장", "status": "todo" },
+        { "id": "M7-T2", "title": "언어 모델 확장(ko/en/vi→국가별 모국어)", "status": "todo" },
+        { "id": "M7-T3", "title": "값 번역 방식 결정·구현", "status": "todo" },
+        { "id": "M7-T4", "title": "백엔드 language 파라미터 확장 + 결과 적용", "status": "todo" }
+      ]
+    },
+    {
+      "id": "M8",
+      "name": "원문 하이라이트 (후속)",
+      "status": "todo",
+      "notes": "주의 조항 출처 표시. 서버 OCR 좌표 반환 + 조항↔원문 퍼지 매칭 + 이미지 오버레이(C), 텍스트 점프(B)는 경량. roadmap Phase 10. PRD F-17. 저장 모델은 좌표 미저장 → 이후 새 기록만 적용.",
+      "tasks": [
+        { "id": "M8-T1", "title": "서버 OCR 좌표 반환", "status": "todo" },
+        { "id": "M8-T2", "title": "조항↔원문 퍼지 매칭", "status": "todo" },
+        { "id": "M8-T3", "title": "이미지 위 하이라이트(C)/텍스트 점프(B)", "status": "todo" }
+      ]
     }
   ],
   "openQuestions": [
+    "[저장] 결정: AsyncStorage(기록)+expo-file-system(이미지 N장)·기록별 폴더, 원본 보관(다운스케일 후순위), 멀티페이지 포함",
+    "[다국어] 값 번역을 AI 생성 vs 번역으로 할지, 계약 원문은 한국어 유지할지, 14개국 언어 1차 범위",
     "OCR 은 Google Vision 으로 확정·검증 (CLOVA 전환은 선택)",
     "실제 표준근로계약서 샘플 1장 출처 (현재는 데모 샘플)",
     "상담기관 명칭/연락처를 결과 화면에 넣을지"
@@ -85,6 +136,8 @@
     "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)"
   ],
   "nextActions": [
+    "[다음 세션] Phase 8 / M6 구현: 멀티페이지 + 저장·재열람 (설계 합의 완료 → writing-plans). PRD F-12·F-13·F-16",
+    "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 국가/언어 선택 (PRD F-14·F-15)",
     "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",
     "실제 표준근로계약서 샘플로 데모 데이터/정답 JSON 교체",
     "결과 화면 UI·문구 다듬기, OCR 원문 보기(선택)",
