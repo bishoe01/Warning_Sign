@@ -109,9 +109,11 @@
 ```http
 Content-Type: multipart/form-data
 
-file: contract_image.jpg
+files: contract_image_1.jpg, contract_image_2.jpg, …   (1장 이상 N장; F-16 멀티페이지)
 language: ko | en | vi
 ```
+
+> 구현(2026-06-02): 서버는 `files: List[UploadFile]` 를 받아 장별 OCR 후 텍스트를 합쳐 1회 분석한다(단일 장도 길이 1로 동일 경로).
 
 응답:
 

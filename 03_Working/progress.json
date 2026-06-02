@@ -1,6 +1,6 @@
 {
   "project": "AI 근로계약서 도우미 MVP",
-  "updatedAt": "2026-06-01",
+  "updatedAt": "2026-06-02",
   "status": "building",
   "currentBaseline": {
     "ideaDocument": "01_Idea/idea_.md",
@@ -11,7 +11,7 @@
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 설계 spec + 구현계획 plan 완료(03_Working/2026-06-01_phase8_저장재열람_{spec,plan}.md), 구현 착수 대기. 다음: plan Task 1부터 → M7 다국어. 데모/제출물(M4) 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료(plan Task 1~11 → 12 커밋 main 미푸시; tsc+iOS 번들 통과; 수동 테스트 대기). 다음: M6 수동 검증+push → M7 다국어. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "documents": {
@@ -91,14 +91,14 @@
     {
       "id": "M6",
       "name": "분석 결과 저장·재열람 + 멀티페이지",
-      "status": "todo",
-      "notes": "1회성 탈피 + 멀티페이지. 여러 장 촬영→서버 장별 OCR 합쳐 분석→로컬 저장(계정/서버 X)→목록·재열람·삭제. 설계 합의: 2026-06-01_phase8_저장재열람_spec.md. PRD F-12·F-13·F-16.",
+      "status": "done",
+      "notes": "구현 완료(2026-06-02): plan Task 1~11 → 12 커밋(main 미푸시). tsc + iOS 번들(expo export) 통과, 수동 시뮬레이터/실기기 테스트 대기. historyStore(AsyncStorage 기록+expo-file-system 이미지, 파일명만 저장→런타임 복원, 동기 copySync), 멀티페이지 캡처·N장 전송·서버 List[UploadFile] 장별 OCR. 설계: 2026-06-01_phase8_저장재열람_spec.md. PRD F-12·F-13·F-16.",
       "tasks": [
-        { "id": "M6-T1", "title": "멀티페이지 캡처(select.tsx)+멀티 업로드+서버 장별 OCR 합치기", "status": "todo" },
-        { "id": "M6-T2", "title": "로컬 저장(historyStore: AsyncStorage+expo-file-system, 이미지 N장)", "status": "todo" },
-        { "id": "M6-T3", "title": "내역 목록 + 상세 재열람(+계약서 이미지 보기)", "status": "todo" },
-        { "id": "M6-T4", "title": "삭제(개별 스와이프+보이는 보조/전체)", "status": "todo" },
-        { "id": "M6-T5", "title": "흐름 UX(멀티 로딩 문구·저장됨 안내·결과 후 홈/목록 분기·샘플 배지)", "status": "todo" }
+        { "id": "M6-T1", "title": "멀티페이지 캡처(select.tsx)+멀티 업로드+서버 장별 OCR 합치기", "status": "done" },
+        { "id": "M6-T2", "title": "로컬 저장(historyStore: AsyncStorage+expo-file-system, 이미지 N장)", "status": "done" },
+        { "id": "M6-T3", "title": "내역 목록 + 상세 재열람(+계약서 이미지 보기)", "status": "done" },
+        { "id": "M6-T4", "title": "삭제(개별 스와이프+보이는 보조/전체)", "status": "done" },
+        { "id": "M6-T5", "title": "흐름 UX(멀티 로딩 문구·저장됨 안내·결과 후 홈/목록 분기·샘플 배지)", "status": "done" }
       ]
     },
     {
@@ -133,10 +133,13 @@
     "상담기관 명칭/연락처를 결과 화면에 넣을지"
   ],
   "blockers": [
-    "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)"
+    "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)",
+    "04_App/server/requirements.txt 비어 있음 → README대로 pip install 시 서버 의존성 미설치(uvicorn 없음). 실제 OCR/AI 서버 실행 전 채울 것: fastapi uvicorn python-multipart python-dotenv requests openai"
   ],
   "nextActions": [
-    "[다음 세션] Phase 8 / M6 구현 착수: 2026-06-01_phase8_저장재열람_plan.md 의 Task 1(의존성)부터 순서대로 11개 Task. spec+plan 완료, 실행만 남음. PRD F-12·F-13·F-16",
+    "[다음 세션] Phase 8 수동 검증: cd 04_App/mobile && npx expo start --go → 시뮬레이터(카메라 없음 → 갤러리로 페이지 추가) 또는 실기기 Expo Go(카메라 촬영). 2장 분석→저장→목록·재열람·삭제→앱 재시작 후 유지→서버 끈 채 '샘플' 배지. 통과 후 git push(12 커밋 미푸시)",
+    "[다음 세션] 카메라 UX 개편(A, Phase 8 폴리시): spec 03_Working/2026-06-02_camera_capture_ux_spec.md 확정(촬영↔검토 2모드+캐러셀, 카메라 active=focused&&capture). select.tsx 단일 파일 → writing-plans → 구현",
+    "[다음 세션] 마이페이지/IA(B) brainstorm: 방향 03_Working/2026-06-02_phase9_마이페이지_방향.md → Phase 9 다국어와 통합(IA 택1부터)",
     "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 국가/언어 선택 (PRD F-14·F-15)",
     "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",
     "실제 표준근로계약서 샘플로 데모 데이터/정답 JSON 교체",
