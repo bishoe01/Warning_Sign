@@ -138,7 +138,7 @@
   ],
   "nextActions": [
     "[다음 세션] Phase 8 수동 검증: cd 04_App/mobile && npx expo start --go → 시뮬레이터(카메라 없음 → 갤러리로 페이지 추가) 또는 실기기 Expo Go(카메라 촬영). 2장 분석→저장→목록·재열람·삭제→앱 재시작 후 유지→서버 끈 채 '샘플' 배지. 통과 후 git push(12 커밋 미푸시)",
-    "[다음 세션] 카메라 UX 개편(A, Phase 8 폴리시): spec 03_Working/2026-06-02_camera_capture_ux_spec.md 확정(촬영↔검토 2모드+캐러셀, 카메라 active=focused&&capture). select.tsx 단일 파일 → writing-plans → 구현",
+    "[다음 세션] 카메라 UX 개편(A): 구현계획 완성 03_Working/2026-06-02_camera_capture_ux_plan.md (select.tsx 전체 교체 코드 포함, 촬영↔검토 2모드+캐러셀, active=focused&&capture). subagent-driven-development로 실행만",
     "[다음 세션] 마이페이지/IA(B) brainstorm: 방향 03_Working/2026-06-02_phase9_마이페이지_방향.md → Phase 9 다국어와 통합(IA 택1부터)",
     "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 국가/언어 선택 (PRD F-14·F-15)",
     "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",
