@@ -1,14 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, levelColors, radius, shadow, spacing } from '@/constants/theme';
-import type { LabelSet } from '@/constants/labels';
-import type { CautionItem, Language } from '@/data/sampleAnalysis';
-
-function pickExplanation(item: CautionItem, language: Language): string {
-  if (language === 'en') return item.explanationEn;
-  if (language === 'vi') return item.explanationVi;
-  return item.explanationKo;
-}
+import type { CautionItem } from '@/data/sampleAnalysis';
+import { getLocalized } from '@/i18n/localized';
+import type { AppLanguage } from '@/i18n/languages';
+import type { Translation } from '@/i18n/translations';
 
 export function CautionCard({
   item,
@@ -16,8 +12,8 @@ export function CautionCard({
   labels,
 }: {
   item: CautionItem;
-  language: Language;
-  labels: LabelSet;
+  language: AppLanguage;
+  labels: Translation['result'];
 }) {
   const lv = levelColors[item.level];
 
@@ -27,7 +23,7 @@ export function CautionCard({
         <View style={[styles.badge, { backgroundColor: lv.bg }]}>
           <Text style={[styles.badgeText, { color: lv.fg }]}>{labels.levels[item.level]}</Text>
         </View>
-        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.title}>{getLocalized(item.title, language)}</Text>
       </View>
 
       <View style={styles.quote}>
@@ -35,7 +31,7 @@ export function CautionCard({
         <Text style={styles.quoteText}>“{item.originalText}”</Text>
       </View>
 
-      <Text style={styles.explanation}>{pickExplanation(item, language)}</Text>
+      <Text style={styles.explanation}>{getLocalized(item.explanation, language)}</Text>
     </View>
   );
 }

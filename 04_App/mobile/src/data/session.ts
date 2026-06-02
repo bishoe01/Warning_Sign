@@ -3,10 +3,17 @@ import { sampleAnalysis, type AnalysisResult } from '@/data/sampleAnalysis';
 
 let pendingImages: string[] = [];
 let lastResult: AnalysisResult = sampleAnalysis;
+let lastIsSample = true;
+let lastError: string | null = null;
 
 export const session = {
   setImages(uris: string[]) { pendingImages = uris; },
   getImages(): string[] { return pendingImages; },
-  setResult(result: AnalysisResult) { lastResult = result; },
+  setResult(result: AnalysisResult, meta: { isSample?: boolean; error?: string | null } = {}) {
+    lastResult = result;
+    lastIsSample = meta.isSample ?? !!result.isSample;
+    lastError = meta.error ?? null;
+  },
   getResult(): AnalysisResult { return lastResult; },
+  getResultMeta() { return { isSample: lastIsSample, error: lastError }; },
 };

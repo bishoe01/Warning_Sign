@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,20 +9,22 @@ import { colors, spacing } from '@/constants/theme';
 import * as historyStore from '@/data/historyStore';
 import { sampleAnalysis } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
+import { useI18n } from '@/i18n/useI18n';
 
 const STEP_MS = 900;
 
 export default function LoadingScreen() {
   const router = useRouter();
+  const { language, t } = useI18n();
   const [step, setStep] = useState(0);
 
   const pageCount = session.getImages().length;
-  const STEPS = [
-    '계약서 이미지를 업로드하고 있어요.',
-    pageCount > 1 ? `${pageCount}장을 읽고 있어요. 장수가 많으면 조금 더 걸려요.` : 'OCR로 계약서 문장을 읽고 있어요.',
-    'AI가 임금·근무시간·휴일 조건을 분석하고 있어요.',
-    '확인이 필요한 조항을 쉬운 문장으로 정리하고 있어요.',
-  ];
+  const STEPS = useMemo(() => [
+    t.loading.upload,
+    pageCount > 1 ? t.loading.ocrMulti(pageCount) : t.loading.ocrSingle,
+    t.loading.analyze,
+    t.loading.simplify,
+  ], [pageCount, t]);
 
   // 중앙 아이콘 펄스 링 애니메이션
   const pulse = useRef(new Animated.Value(0)).current;
@@ -58,16 +60,20 @@ export default function LoadingScreen() {
       const uris = session.getImages();
       let result = sampleAnalysis;
       let isSample = uris.length === 0; // 이미지 없으면 샘플
+      let error: string | null = uris.length === 0 ? 'no-image' : null;
       try {
         if (uris.length > 0) {
-          result = await analyzeContract(uris, 'ko');
+          result = await analyzeContract(uris, language);
+          isSample = !!result.isSample;
+          error = null;
         }
-      } catch {
+      } catch (err) {
         result = sampleAnalysis;
         isSample = true; // 서버 실패 → 샘플 폴백
+        error = err instanceof Error ? err.message : 'request failed';
       }
       if (cancelled) return;
-      session.setResult(result);
+      session.setResult(result, { isSample, error });
       void historyStore.save(result, uris, { isSample }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
       const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
       timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, wait));
@@ -77,7 +83,7 @@ export default function LoadingScreen() {
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [router]);
+  }, [language, router, STEPS]);
 
   const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] });

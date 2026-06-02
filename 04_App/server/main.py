@@ -11,6 +11,7 @@ from models import AnalysisResult
 from ocr_service import run_ocr
 
 app = FastAPI(title="AI 근로계약서 도우미 API")
+SUPPORTED_LANGUAGES = {"ko", "en", "ne", "tet", "ru", "mn", "my", "bn", "vi", "uz", "id", "zh", "km", "ky", "th", "lo"}
 
 # 개발용 CORS (앱/웹에서 호출). 운영 시 도메인 제한 권장.
 app.add_middleware(
@@ -37,7 +38,7 @@ async def analyze_contract(
     files: List[UploadFile] = File(...),
     language: str = Form("ko"),
 ):
-    if language not in ("ko", "en", "vi"):
+    if language not in SUPPORTED_LANGUAGES:
         language = "ko"
 
     texts = []

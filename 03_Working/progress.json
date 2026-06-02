@@ -23,7 +23,10 @@
     "backendDecisions": { "path": "03_Working/2026-05-31_backend_decisions.md", "status": "done" },
     "uiRedesign": { "path": "03_Working/2026-06-01_UI리디자인_결정.md", "status": "done" },
     "cameraCaptureUxSpec": { "path": "03_Working/2026-06-02_camera_capture_ux_spec.md", "status": "done" },
-    "cameraCaptureUxPlan": { "path": "03_Working/2026-06-02_camera_capture_ux_plan.md", "status": "done" }
+    "cameraCaptureUxPlan": { "path": "03_Working/2026-06-02_camera_capture_ux_plan.md", "status": "done" },
+    "phase9IaI18nDesign": { "path": "03_Working/2026-06-02_phase9_IA_다국어_설계.md", "status": "review" },
+    "phase9ImplementationPlan": { "path": "03_Working/2026-06-02_phase9_구현계획.md", "status": "active" },
+    "phase10SourceHighlightDesign": { "path": "03_Working/2026-06-02_phase10_사진출처_하이라이트_설계메모.md", "status": "review" }
   },
   "milestones": [
     {
@@ -105,31 +108,33 @@
     },
     {
       "id": "M7",
-      "name": "다국어 확장 + 마이페이지(국가/언어)",
-      "status": "todo",
-      "notes": "값까지 번역 + 국가 선택(14개국)으로 한국어/영어/모국어. PRD F-14·F-15.",
+      "name": "다국어 확장 + 마이페이지(언어 설정)",
+      "status": "in_progress",
+      "notes": "구현 시작(2026-06-02): i18n/settingsStore/LanguageTabs/settings 화면/홈 최근 분석/결과 localized 모델/서버 localized 응답 구조 적용. 빈 표준계약서 양식은 실제 값처럼 채우지 않고 '기재 없음'으로 처리하도록 AI 프롬프트 수정 후 sign-0/sign-1 curl 검증 통과. 이후 100원/100시처럼 값은 있으나 비정상인 경우는 미기재가 아니라 비정상 기재로 분류하도록 프롬프트 보정. 노무사식 체크리스트 강화 후 비정상 임금/근무시간/휴게시간, 숙식비 공제, 교육비 반환, 여권 보관, 수당 미지급 7개 항목 직접 analyze 검증 통과. 서버/로컬 샘플 폴백은 isSample 플래그와 결과 화면 샘플 배너로 표시. tsc, py_compile 통과. 남은 작업: 14개 대상 언어 UI 문구를 English fallback 없이 채우고, Expo 화면 QA.",
       "tasks": [
-        { "id": "M7-T1", "title": "마이페이지 국가 선택 + 로컬 저장", "status": "todo" },
-        { "id": "M7-T2", "title": "언어 모델 확장(ko/en/vi→국가별 모국어)", "status": "todo" },
-        { "id": "M7-T3", "title": "값 번역 방식 결정·구현", "status": "todo" },
-        { "id": "M7-T4", "title": "백엔드 language 파라미터 확장 + 결과 적용", "status": "todo" }
+        { "id": "M7-T1", "title": "마이페이지 언어 설정 + 로컬 저장", "status": "in_progress", "notes": "settingsStore + settings 화면 + 언어 선택 저장 구현, 화면 QA 대기" },
+        { "id": "M7-T2", "title": "언어 모델 확장(앱 UI + 14개 결과 언어)", "status": "in_progress", "notes": "언어 코드/탭/타입 구조 구현. 비영어권 UI 문구는 베트남어만 채워짐, 나머지는 fallback 해소 필요" },
+        { "id": "M7-T3", "title": "값 번역 방식 결정·구현", "status": "in_progress", "notes": "localized result 모델 적용. 서버는 ko/en/요청언어 생성 방식. 빈 양식은 추측값 대신 기재 없음 처리, 값은 있으나 비정상인 경우는 비정상 기재로 표시" },
+        { "id": "M7-T4", "title": "백엔드 language 파라미터 확장 + 결과 적용", "status": "in_progress", "notes": "16개 language 허용 + Pydantic localized schema 적용. sign-0/sign-1 language=ky curl 검증 통과" }
       ]
     },
     {
       "id": "M8",
-      "name": "원문 하이라이트 (후속)",
+      "name": "사진 출처 하이라이트 (후속)",
       "status": "todo",
-      "notes": "주의 조항 출처 표시. 서버 OCR 좌표 반환 + 조항↔원문 퍼지 매칭 + 이미지 오버레이(C), 텍스트 점프(B)는 경량. roadmap Phase 10. PRD F-17. 저장 모델은 좌표 미저장 → 이후 새 기록만 적용.",
+      "notes": "주의 조항이 실제 계약서 사진 어디에서 나온 것인지 보여주는 신뢰 UX. AI가 좌표를 생성하지 않고, 서버가 OCR bounding box와 originalText/sourceQuote를 매칭해 source 좌표와 confidence를 붙인다. 결과 카드에는 사진에서 확인, 이미지 뷰어에는 하이라이트, 매칭 실패 시 낮은 신뢰도 안내. 설계: 2026-06-02_phase10_사진출처_하이라이트_설계메모.md. roadmap Phase 10. PRD F-17. 이후 새 기록만 적용.",
       "tasks": [
-        { "id": "M8-T1", "title": "서버 OCR 좌표 반환", "status": "todo" },
-        { "id": "M8-T2", "title": "조항↔원문 퍼지 매칭", "status": "todo" },
-        { "id": "M8-T3", "title": "이미지 위 하이라이트(C)/텍스트 점프(B)", "status": "todo" }
+        { "id": "M8-T1", "title": "서버 OCR 좌표 보존/정규화", "status": "todo" },
+        { "id": "M8-T2", "title": "originalText/sourceQuote ↔ OCR 좌표 매칭", "status": "todo" },
+        { "id": "M8-T3", "title": "결과 카드 사진에서 확인 액션", "status": "todo" },
+        { "id": "M8-T4", "title": "원본 이미지 뷰어 하이라이트 + 낮은 신뢰도 안내", "status": "todo" },
+        { "id": "M8-T5", "title": "새 기록 source 좌표 저장", "status": "todo" }
       ]
     }
   ],
   "openQuestions": [
     "[저장] 결정: AsyncStorage(기록)+expo-file-system(이미지 N장)·기록별 폴더, 원본 보관(다운스케일 후순위), 멀티페이지 포함",
-    "[다국어] 값 번역을 AI 생성 vs 번역으로 할지, 계약 원문은 한국어 유지할지, 14개국 언어 1차 범위",
+    "[다국어] 값 번역을 AI 생성 vs 번역으로 할지, 계약 원문은 한국어 유지할지, 앱 전체 UI 번역 키를 어떻게 검수할지",
     "OCR 은 Google Vision 으로 확정·검증 (CLOVA 전환은 선택)",
     "실제 표준근로계약서 샘플 1장 출처 (현재는 데모 샘플)",
     "상담기관 명칭/연락처를 결과 화면에 넣을지"
@@ -140,8 +145,8 @@
   ],
   "nextActions": [
     "[다음 세션] Phase 8 + 카메라 UX 수동 검증: cd 04_App/mobile && npx expo start --go → 팀원 iPhone App Store Expo Go에서 QR 스캔. 갤러리로 2장 추가→자동 검토 캐러셀→삭제→분석→저장→목록·재열람·삭제→앱 재시작 후 유지→서버 끈 채 '샘플' 배지. 실기기 카메라: 연속 촬영→검토, 화면 이탈/검토 시 카메라 초록 점 꺼짐. 통과 후 git push(기존 12 커밋+카메라 UX+SDK54 변경 미푸시)",
-    "[다음 세션] 마이페이지/IA(B) brainstorm: 방향 03_Working/2026-06-02_phase9_마이페이지_방향.md → Phase 9 다국어와 통합(IA 택1부터)",
-    "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 국가/언어 선택 (PRD F-14·F-15)",
+    "[다음 세션] Phase 9 구현 계획: 기준 03_Working/2026-06-02_phase9_IA_다국어_설계.md. 홈 Toss 톤 유지, 언어 토글/리스트, 마이페이지 언어 설정/기록/로컬 저장 안내",
+    "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 언어 설정. 선택 언어가 앱 전체 UI와 분석 결과에 함께 적용되도록 구현 (PRD F-14·F-15)",
     "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",
     "실제 표준근로계약서 샘플로 데모 데이터/정답 JSON 교체",
     "결과 화면 UI·문구 다듬기, OCR 원문 보기(선택)",

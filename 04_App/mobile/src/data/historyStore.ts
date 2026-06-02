@@ -56,7 +56,7 @@ export async function save(
       throw err;
     }
   }
-  const record: HistoryRecord = { id, createdAt, result, imageFiles, isSample: opts.isSample };
+  const record: HistoryRecord = { id, createdAt, result, imageFiles, isSample: opts.isSample ?? !!result.isSample };
   const all = await readAll();
   await writeAll([record, ...all]);
   return record;

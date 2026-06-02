@@ -1,16 +1,26 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, shadow, spacing } from '@/constants/theme';
-import type { LabelSet } from '@/constants/labels';
 import type { Summary } from '@/data/sampleAnalysis';
+import { getLocalized } from '@/i18n/localized';
+import type { AppLanguage } from '@/i18n/languages';
+import type { Translation } from '@/i18n/translations';
 
-export function SummaryCard({ summary, labels }: { summary: Summary; labels: LabelSet }) {
+export function SummaryCard({
+  summary,
+  language,
+  labels,
+}: {
+  summary: Summary;
+  language: AppLanguage;
+  labels: Translation['result'];
+}) {
   const rows = [
-    { label: labels.fields.salary, value: summary.salary },
-    { label: labels.fields.workHours, value: summary.workHours },
-    { label: labels.fields.holiday, value: summary.holiday },
-    { label: labels.fields.contractPeriod, value: summary.contractPeriod },
-    { label: labels.fields.deduction, value: summary.deduction },
+    { label: labels.fields.salary, value: getLocalized(summary.salary, language) },
+    { label: labels.fields.workHours, value: getLocalized(summary.workHours, language) },
+    { label: labels.fields.holiday, value: getLocalized(summary.holiday, language) },
+    { label: labels.fields.contractPeriod, value: getLocalized(summary.contractPeriod, language) },
+    { label: labels.fields.deduction, value: getLocalized(summary.deduction, language) },
   ];
 
   return (

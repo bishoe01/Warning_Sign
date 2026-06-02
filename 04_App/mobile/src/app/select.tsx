@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, shadow, spacing } from '@/constants/theme';
 import { session } from '@/data/session';
+import type { Translation } from '@/i18n/translations';
+import { useI18n } from '@/i18n/useI18n';
 
 type Mode = 'capture' | 'review';
 
@@ -19,6 +21,7 @@ const clampIndex = (index: number, length: number) => {
 
 export default function CaptureScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
   const carouselRef = useRef<ScrollView>(null);
@@ -131,20 +134,20 @@ export default function CaptureScreen() {
     return (
       <View style={[styles.root, styles.permWrap, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <StatusBar style="light" />
-        <Header insetTop={insets.top} onBack={() => router.back()} torch={false} onTorch={undefined} />
+        <Header insetTop={insets.top} onBack={() => router.back()} torch={false} onTorch={undefined} labels={t.select} />
         <View style={styles.permCard}>
           <View style={styles.permIcon}>
             <Feather name="camera" size={26} color={colors.primary} />
           </View>
-          <Text style={styles.permTitle}>카메라 권한이 필요해요</Text>
-          <Text style={styles.permDesc}>계약서를 촬영해 분석하려면 카메라 접근을 허용해 주세요.</Text>
+          <Text style={styles.permTitle}>{t.select.permissionTitle}</Text>
+          <Text style={styles.permDesc}>{t.select.permissionDesc}</Text>
           <Pressable
             style={({ pressed }) => [styles.permButton, pressed && styles.pressed]}
             onPress={requestPermission}>
-            <Text style={styles.permButtonText}>카메라 권한 허용</Text>
+            <Text style={styles.permButtonText}>{t.select.allowCamera}</Text>
           </Pressable>
           <Pressable onPress={pickFromGallery} hitSlop={8}>
-            <Text style={styles.permGallery}>갤러리에서 선택</Text>
+            <Text style={styles.permGallery}>{t.select.gallery}</Text>
           </Pressable>
         </View>
       </View>
@@ -166,14 +169,15 @@ export default function CaptureScreen() {
         onBack={() => router.back()}
         torch={torch}
         onTorch={mode === 'capture' && permission.granted ? () => setTorch((v) => !v) : undefined}
+        labels={t.select}
       />
 
       <Text style={styles.hint}>
         {mode === 'review'
-          ? `${pages.length}장 · 넘겨서 확인하세요`
+          ? t.select.reviewHint(pages.length)
           : pages.length === 0
-            ? '계약서를 네모 칸에 꽉 차게 맞춰 주세요'
-            : `${pages.length}장 추가됨 · 다음 장을 찍거나 검토하세요`}
+            ? t.select.emptyHint
+            : t.select.addedHint(pages.length)}
       </Text>
 
       <View style={styles.frameWrap}>
@@ -277,14 +281,14 @@ export default function CaptureScreen() {
                 <Pressable
                   style={({ pressed }) => [styles.reviewChip, pressed && styles.pressed]}
                   onPress={() => goReview(pages.length - 1)}>
-                  <Text style={styles.reviewChipText}>검토 {pages.length}</Text>
+                  <Text style={styles.reviewChipText}>{t.select.review(pages.length)}</Text>
                 </Pressable>
               ) : (
                 <View style={styles.sideButton} />
               )}
             </View>
             {pages.length === 0 && (
-              <Text style={styles.tip}>그림자 없이 글자가 또렷하게 나오도록 맞춰 주세요</Text>
+              <Text style={styles.tip}>{t.select.tip}</Text>
             )}
           </>
         ) : (
@@ -294,19 +298,19 @@ export default function CaptureScreen() {
                 style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
                 onPress={enterCapture}>
                 <Feather name="camera" size={18} color={colors.white} />
-                <Text style={styles.secondaryText}>{permission.granted ? '촬영' : '촬영 권한'}</Text>
+                <Text style={styles.secondaryText}>{permission.granted ? t.select.camera : t.select.cameraPermission}</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
                 onPress={pickFromGallery}>
                 <Feather name="image" size={18} color={colors.white} />
-                <Text style={styles.secondaryText}>갤러리</Text>
+                <Text style={styles.secondaryText}>{t.select.gallery}</Text>
               </Pressable>
             </View>
             <Pressable
               style={({ pressed }) => [styles.analyzeButton, shadow.button, pressed && styles.pressed]}
               onPress={analyze}>
-              <Text style={styles.analyzeText}>분석하기 ({pages.length}장)</Text>
+              <Text style={styles.analyzeText}>{t.select.analyze(pages.length)}</Text>
             </Pressable>
           </>
         )}
@@ -320,18 +324,20 @@ function Header({
   onBack,
   torch,
   onTorch,
+  labels,
 }: {
   insetTop: number;
   onBack: () => void;
   torch: boolean;
   onTorch?: () => void;
+  labels: Translation['select'];
 }) {
   return (
     <View style={[styles.header, { paddingTop: insetTop + spacing.sm }]}>
       <Pressable onPress={onBack} hitSlop={10} style={styles.headerBtn}>
         <Feather name="chevron-left" size={26} color={colors.white} />
       </Pressable>
-      <Text style={styles.headerTitle}>계약서 촬영</Text>
+      <Text style={styles.headerTitle}>{labels.title}</Text>
       <View style={styles.headerSpacer} />
       {onTorch ? (
         <Pressable onPress={onTorch} hitSlop={10} style={[styles.flashBtn, torch && styles.flashOn]}>

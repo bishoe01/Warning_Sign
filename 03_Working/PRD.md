@@ -36,7 +36,7 @@
 다음 단계(2026-06-01 추가):
 
 - 분석 결과를 기기에 저장해 나중에 다시 열어볼 수 있다(1회성 탈피).
-- 사용자가 자신의 국가를 고르면 핵심 조건·주의 조항을 **값까지** 모국어로 본다(한국어/영어/모국어).
+- 사용자가 언어 토글/리스트에서 읽고 싶은 언어를 고르면 앱 전체 UI와 핵심 조건·주의 조항을 **값까지** 해당 언어로 본다.
 
 ## 5. 비목표
 
@@ -84,9 +84,9 @@
 | F-12 | 분석 결과 로컬 저장 | P2 | 분석이 끝나면 결과(요약·주의조항·계약서 이미지들·시각)를 기기에 저장한다. |
 | F-13 | 저장 내역 열람 | P2 | 홈에서 과거 분석을 목록으로 보고 다시 연다(마이페이지는 P9). |
 | F-14 | 값 포함 다국어 | P2 | 항목 라벨뿐 아니라 요약 값·주의 조항 내용도 선택 언어로 본다. |
-| F-15 | 마이페이지(국가/언어) | P2 | 사용자가 국가(14개국)를 고르면 표시 언어가 한국어/영어/모국어로 설정된다. |
+| F-15 | 마이페이지(언어 설정) | P2 | 사용자가 언어 토글/리스트에서 앱 언어를 고르고, 선택값이 앱 전체 UI와 분석 결과에 함께 적용되며 기기에 저장된다. |
 | F-16 | 멀티페이지 분석 | P2 | 여러 장 계약서를 촬영/선택해 한 번에 업로드하고, 서버가 장별 OCR 후 합쳐 분석한다. |
-| F-17 | 원문 하이라이트 | P3 | 주의 조항이 계약서 이미지/원문의 어디서 나왔는지 보여준다(후속 단계, Phase 10). |
+| F-17 | 사진 출처 하이라이트 | P3 | 주의 조항 카드에서 `사진에서 확인`으로 실제 계약서 이미지 위치를 하이라이트하고, 매칭 실패 시 원문 인용/낮은 신뢰도 안내를 제공한다(후속 단계, Phase 10). |
 
 ## 8. API 요구사항
 
@@ -110,7 +110,7 @@
 Content-Type: multipart/form-data
 
 files: contract_image_1.jpg, contract_image_2.jpg, …   (1장 이상 N장; F-16 멀티페이지)
-language: ko | en | vi
+language: ko | en | ne | tet | ru | mn | my | bn | vi | uz | id | zh | km | ky | th | lo
 ```
 
 > 구현(2026-06-02): 서버는 `files: List[UploadFile]` 를 받아 장별 OCR 후 텍스트를 합쳐 1회 분석한다(단일 장도 길이 1로 동일 경로).
@@ -121,23 +121,29 @@ language: ko | en | vi
 {
   "ocrText": "OCR 원문",
   "summary": {
-    "salary": "월 2,060,740원",
-    "workHours": "주 5일, 1일 8시간",
-    "holiday": "매주 일요일",
-    "contractPeriod": "2026.06.01 ~ 2027.05.31",
-    "deduction": "숙식비 월 200,000원 공제"
+    "salary": { "ko": "월 2,060,740원", "en": "Monthly 2,060,740 KRW", "vi": "2.060.740 KRW mỗi tháng" },
+    "workHours": { "ko": "주 5일, 1일 8시간", "en": "5 days a week, 8 hours a day", "vi": "5 ngày/tuần, 8 giờ/ngày" },
+    "holiday": { "ko": "매주 일요일", "en": "Every Sunday", "vi": "Mỗi Chủ nhật" },
+    "contractPeriod": { "ko": "2026.06.01 ~ 2027.05.31", "en": "2026.06.01 - 2027.05.31", "vi": "2026.06.01 - 2027.05.31" },
+    "deduction": { "ko": "숙식비 월 200,000원 공제", "en": "Monthly 200,000 KRW deduction for housing and meals", "vi": "Khấu trừ 200.000 KRW mỗi tháng cho chỗ ở và bữa ăn" }
   },
   "cautionItems": [
     {
       "level": "check",
-      "title": "퇴사 시 위약금 조항",
+      "title": { "ko": "퇴사 시 위약금 조항", "en": "Penalty clause for leaving work", "vi": "Điều khoản phạt khi nghỉ việc" },
       "originalText": "근로자가 1년 이내 퇴사할 경우 교육비 100만원을 반환한다.",
-      "explanationKo": "퇴사할 때 돈을 내야 한다는 내용입니다. 문제가 될 수 있으니 상담이 필요합니다.",
-      "explanationEn": "This says you may have to pay money if you quit early. You should ask for advice before signing.",
-      "explanationVi": "Điều khoản này nói rằng bạn có thể phải trả tiền nếu nghỉ việc sớm. Bạn nên được tư vấn trước khi ký."
+      "explanation": {
+        "ko": "퇴사할 때 돈을 내야 한다는 내용입니다. 문제가 될 수 있으니 상담이 필요합니다.",
+        "en": "This says you may have to pay money if you quit early. You should ask for advice before signing.",
+        "vi": "Điều khoản này nói rằng bạn có thể phải trả tiền nếu nghỉ việc sớm. Bạn nên được tư vấn trước khi ký."
+      }
     }
   ],
-  "notice": "이 분석은 법률 자문이 아니라 참고용 안내입니다. 중요한 계약은 전문가 상담을 권장합니다."
+  "notice": {
+    "ko": "이 분석은 법률 자문이 아니라 참고용 안내입니다. 중요한 계약은 전문가 상담을 권장합니다.",
+    "en": "This analysis is for reference only, not legal advice. For important contracts, professional advice is recommended.",
+    "vi": "Phân tích này chỉ để tham khảo, không phải tư vấn pháp lý. Với hợp đồng quan trọng, nên hỏi chuyên gia."
+  }
 }
 ```
 
@@ -169,5 +175,6 @@ language: ko | en | vi
 - `TODO: 근거 확인 필요` 표준근로계약서 샘플 출처
 - `결정됨(2026-06-01)` 로컬 저장: AsyncStorage(기록 JSON) + expo-file-system(이미지 N장, 기록별 폴더). 개별/전체 삭제. 설계: `2026-06-01_phase8_저장재열람_spec.md` (F-12·F-13·F-16)
 - `TODO: 설계 필요` 값 다국어 방식 — AI가 선택 언어로 직접 생성할지, 한국어 결과를 번역할지. 계약 '원문'(originalText)은 한국어로 유지할지 (F-14)
-- `TODO: 결정 필요` 14개국 언어 중 1차 지원 범위(전체 vs 사용자 많은 순서로 일부부터) (F-15)
-- `backlog(후순위)` 핀치 줌·이미지 다운스케일은 필요 시. 텍스트 출처 점프(B)·이미지 위 하이라이트(C)는 Phase 10 (F-17)
+- `결정됨(2026-06-02)` Phase 9 언어 범위: 선택 언어가 앱 전체 UI와 분석 결과에 함께 적용된다. 한국어/영어/기존 14개 대상 국가에서 도출한 14개 언어를 구현한다. 국적/국가를 묻지 않고 언어 토글/리스트로 선택한다. 설계: `2026-06-02_phase9_IA_다국어_설계.md` (F-15)
+- `결정됨(2026-06-02)` Phase 10 사진 출처 하이라이트: AI가 좌표를 생성하지 않고, OCR 좌표와 원문 매칭으로 주의 조항의 실제 사진 위치를 보여준다. 설계: `2026-06-02_phase10_사진출처_하이라이트_설계메모.md` (F-17)
+- `backlog(후순위)` 핀치 줌·이미지 다운스케일은 필요 시. Phase 10 1차는 "어디에서 온 결과인지 확인 가능"을 우선한다.

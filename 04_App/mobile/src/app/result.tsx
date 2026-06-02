@@ -8,19 +8,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CautionCard } from '@/components/CautionCard';
 import { LanguageTabs } from '@/components/LanguageTabs';
 import { SummaryCard } from '@/components/SummaryCard';
-import { labels } from '@/constants/labels';
 import { colors, radius, spacing } from '@/constants/theme';
 import * as historyStore from '@/data/historyStore';
-import type { Language } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
+import { getLocalized } from '@/i18n/localized';
+import { useI18n } from '@/i18n/useI18n';
 
 export default function ResultScreen() {
   const router = useRouter();
-  const [language, setLanguage] = useState<Language>('ko');
+  const { language, setLanguage, t } = useI18n();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const fromHistory = !!id;
   const [record, setRecord] = useState<historyStore.HistoryRecord | null>(null);
   const [viewer, setViewer] = useState<string | null>(null);
+  const tr = t.result;
   useEffect(() => { if (id) historyStore.get(id).then((r) => (r ? setRecord(r) : router.back())); }, [id]);
 
   // 기록 로딩 중엔 직전 분석(session)이 한 프레임 보이는 깜빡임 방지 (모든 훅 선언 뒤에 위치)
@@ -31,7 +32,7 @@ export default function ResultScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
             <Feather name="chevron-left" size={26} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>분석 결과</Text>
+          <Text style={styles.headerTitle}>{tr.title}</Text>
           <View style={styles.backBtn} />
         </View>
         <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
@@ -41,7 +42,8 @@ export default function ResultScreen() {
 
   const data = fromHistory ? record!.result : session.getResult();
   const imageUris = fromHistory ? historyStore.pageUris(record!) : session.getImages();
-  const t = labels[language];
+  const meta = fromHistory ? { isSample: !!record!.isSample, error: null } : session.getResultMeta();
+  const isSample = meta.isSample || !!data.isSample;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -49,12 +51,12 @@ export default function ResultScreen() {
         <Pressable onPress={() => (fromHistory ? router.back() : router.replace('/'))} hitSlop={10} style={styles.backBtn}>
           <Feather name={fromHistory ? 'chevron-left' : 'home'} size={fromHistory ? 26 : 22} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>분석 결과</Text>
+          <Text style={styles.headerTitle}>{tr.title}</Text>
         {fromHistory ? (
           <Pressable hitSlop={10} style={styles.backBtn} onPress={() => {
-            Alert.alert('삭제', '이 분석 기록을 지울까요?', [
-              { text: '취소', style: 'cancel' },
-              { text: '삭제', style: 'destructive', onPress: () => historyStore.remove(id!).then(() => router.back()) },
+            Alert.alert(tr.deleteTitle, tr.deleteMessage, [
+              { text: t.common.cancel, style: 'cancel' },
+              { text: t.common.delete, style: 'destructive', onPress: () => historyStore.remove(id!).then(() => router.back()) },
             ]);
           }}>
             <Feather name="trash-2" size={20} color={colors.textTertiary} />
@@ -65,35 +67,46 @@ export default function ResultScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {isSample && (
+          <View style={styles.sampleNote}>
+            <Feather name="alert-triangle" size={15} color="#B45309" />
+            <View style={styles.sampleTextWrap}>
+              <Text style={styles.sampleTitle}>{tr.sampleTitle}</Text>
+              <Text style={styles.sampleDesc}>
+                {tr.sampleDesc}{meta.error ? ` (${meta.error})` : ''}
+              </Text>
+            </View>
+          </View>
+        )}
         {!fromHistory && (
           <View style={styles.savedNote}>
             <Feather name="check-circle" size={14} color={colors.primary} />
-            <Text style={styles.savedNoteText}>이 기기에 저장됐어요 · 홈의 '내 기록'에서 다시 볼 수 있어요</Text>
+            <Text style={styles.savedNoteText}>{tr.saved}</Text>
           </View>
         )}
         <LanguageTabs value={language} onChange={setLanguage} />
 
-        <Text style={styles.sectionTitle}>{t.summaryTitle}</Text>
-        <SummaryCard summary={data.summary} labels={t} />
+        <Text style={styles.sectionTitle}>{tr.summaryTitle}</Text>
+        <SummaryCard summary={data.summary} language={language} labels={tr} />
 
         <View style={styles.cautionHead}>
-          <Text style={styles.sectionTitle}>{t.cautionTitle}</Text>
+          <Text style={styles.sectionTitle}>{tr.cautionTitle}</Text>
           <Text style={styles.count}>{data.cautionItems.length}</Text>
         </View>
         <View style={styles.cautionList}>
           {data.cautionItems.map((item, index) => (
-            <CautionCard key={index} item={item} language={language} labels={t} />
+            <CautionCard key={index} item={item} language={language} labels={tr} />
           ))}
         </View>
 
         <View style={styles.notice}>
-          <Text style={styles.noticeLabel}>{t.noticeLabel}</Text>
-          <Text style={styles.noticeText}>{data.notice}</Text>
+          <Text style={styles.noticeLabel}>{tr.noticeLabel}</Text>
+          <Text style={styles.noticeText}>{getLocalized(data.notice, language)}</Text>
         </View>
 
         {imageUris.length > 0 && (
           <View style={styles.originalBlock}>
-            <Text style={styles.sectionTitle}>계약서 원본 {imageUris.length}장</Text>
+            <Text style={styles.sectionTitle}>{tr.originalImages(imageUris.length)}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
               {imageUris.map((uri, i) => (
                 <Pressable key={uri + i} onPress={() => setViewer(uri)}>
@@ -137,6 +150,11 @@ const styles = StyleSheet.create({
   savedNote: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primarySoft,
     borderRadius: radius.md, paddingVertical: 9, paddingHorizontal: spacing.md },
   savedNoteText: { flex: 1, fontSize: 12, color: colors.primary, fontWeight: '700' },
+  sampleNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFF7ED',
+    borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: spacing.md },
+  sampleTextWrap: { flex: 1, gap: 2 },
+  sampleTitle: { fontSize: 12, color: '#92400E', fontWeight: '900' },
+  sampleDesc: { fontSize: 12, color: '#92400E', fontWeight: '600', lineHeight: 17 },
   originalBlock: { marginTop: spacing.sm, gap: spacing.sm },
   originalThumb: { width: 92, height: 124, borderRadius: radius.md, backgroundColor: colors.bgElevated },
   viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },

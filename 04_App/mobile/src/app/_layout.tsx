@@ -21,6 +21,7 @@ export default function RootLayout() {
           <Stack.Screen name="loading" options={{ gestureEnabled: false }} />
           <Stack.Screen name="result" />
           <Stack.Screen name="history" />
+          <Stack.Screen name="settings" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

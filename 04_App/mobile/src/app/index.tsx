@@ -1,12 +1,27 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, radius, shadow, spacing } from '@/constants/theme';
+import * as historyStore from '@/data/historyStore';
+import type { HistoryRecord } from '@/data/historyStore';
+import { getLocalized } from '@/i18n/localized';
+import { languageName } from '@/i18n/languages';
+import { useI18n } from '@/i18n/useI18n';
+
+const SETTINGS_ROUTE = '/settings' as never;
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { language, t } = useI18n();
+  const [latest, setLatest] = useState<HistoryRecord | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    historyStore.list().then((records) => setLatest(records[0] ?? null));
+  }, []));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -15,19 +30,20 @@ export default function HomeScreen() {
           <View style={styles.brandMark}>
             <Feather name="file-text" size={15} color={colors.white} />
           </View>
-          <Text style={styles.brandName}>근로계약 도우미</Text>
+          <Text style={styles.brandName}>{t.common.appName}</Text>
           <View style={{ flex: 1 }} />
-          <Pressable style={styles.historyEntry} hitSlop={8} onPress={() => router.push('/history')}>
-            <Feather name="clock" size={15} color={colors.textSecondary} />
-            <Text style={styles.historyEntryText}>내 기록</Text>
+          <Pressable style={styles.languageEntry} hitSlop={8} onPress={() => router.push(SETTINGS_ROUTE)}>
+            <Feather name="globe" size={14} color={colors.primary} />
+            <Text style={styles.languageEntryText}>{languageName(language)}</Text>
+          </Pressable>
+          <Pressable style={styles.iconEntry} hitSlop={8} onPress={() => router.push(SETTINGS_ROUTE)}>
+            <Feather name="settings" size={17} color={colors.textSecondary} />
           </Pressable>
         </View>
 
         <View style={styles.headlineBlock}>
-          <Text style={styles.headline}>계약서 사진 한 장이면{'\n'}핵심 조건이 한눈에</Text>
-          <Text style={styles.sub}>
-            임금·근무시간·휴일은 물론,{'\n'}놓치기 쉬운 위험 조항까지 쉽게 알려드려요
-          </Text>
+          <Text style={styles.headline}>{t.home.headline}</Text>
+          <Text style={styles.sub}>{t.home.sub}</Text>
         </View>
 
         <View style={styles.heroWrap}>
@@ -45,13 +61,44 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <Pressable
+          style={styles.recent}
+          onPress={() => (latest ? router.push(`/result?id=${latest.id}`) : router.push('/history'))}>
+          <View style={styles.recentHead}>
+            <Text style={styles.recentTitle}>{t.home.recentTitle}</Text>
+            <Pressable hitSlop={8} onPress={() => router.push('/history')}>
+              <Text style={styles.recentLink}>{t.home.viewAll}</Text>
+            </Pressable>
+          </View>
+          {latest ? (
+            <View style={styles.recentRow}>
+              <View style={styles.recentThumb}>
+                {historyStore.pageUris(latest)[0]
+                  ? <Image source={{ uri: historyStore.pageUris(latest)[0] }} style={styles.recentImage} contentFit="cover" />
+                  : <Feather name="file-text" size={20} color={colors.textTertiary} />}
+              </View>
+              <View style={styles.recentBody}>
+                <Text style={styles.recentMain} numberOfLines={1}>
+                  {getLocalized(latest.result.summary.salary, language)}
+                </Text>
+                <Text style={styles.recentMeta}>
+                  {t.home.pages(latest.imageFiles.length || 1)} · {t.home.cautions(latest.result.cautionItems.length)}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.textTertiary} />
+            </View>
+          ) : (
+            <Text style={styles.recentEmpty}>{t.home.recentEmpty}</Text>
+          )}
+        </Pressable>
+
         <View style={styles.bottom}>
           <Pressable
             style={({ pressed }) => [styles.cta, shadow.button, pressed && styles.ctaPressed]}
             onPress={() => router.push('/select')}>
-            <Text style={styles.ctaText}>계약서 분석 시작</Text>
+            <Text style={styles.ctaText}>{t.home.start}</Text>
           </Pressable>
-          <Text style={styles.disclaimer}>법률 자문이 아닌 참고용 안내입니다</Text>
+          <Text style={styles.disclaimer}>{t.common.legalNotice}</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -71,8 +118,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   brandName: { fontSize: 13, fontWeight: '800', color: colors.text },
-  historyEntry: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: colors.bgElevated, borderRadius: 999 },
-  historyEntryText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  languageEntry: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 5, paddingHorizontal: 9, backgroundColor: colors.primarySoft, borderRadius: 999, maxWidth: 116 },
+  languageEntryText: { fontSize: 12, fontWeight: '800', color: colors.primary },
+  iconEntry: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
   headlineBlock: { marginTop: spacing.xxxl },
   headline: { fontSize: 25, fontWeight: '800', color: colors.text, lineHeight: 34 },
   sub: { marginTop: spacing.md, fontSize: 14, fontWeight: '500', color: colors.textSecondary, lineHeight: 22 },
@@ -111,6 +159,17 @@ const styles = StyleSheet.create({
     borderColor: colors.surface,
     ...shadow.button,
   },
+  recent: { marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...shadow.card },
+  recentHead: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  recentTitle: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: '800' },
+  recentLink: { fontSize: 12, color: colors.primary, fontWeight: '800' },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  recentThumb: { width: 40, height: 48, borderRadius: 8, backgroundColor: colors.bgElevated, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  recentImage: { width: '100%', height: '100%' },
+  recentBody: { flex: 1, gap: 3 },
+  recentMain: { fontSize: 13, color: colors.text, fontWeight: '800' },
+  recentMeta: { fontSize: 12, color: colors.textTertiary, fontWeight: '700' },
+  recentEmpty: { fontSize: 13, color: colors.textTertiary, fontWeight: '700' },
   bottom: { paddingBottom: spacing.lg },
   cta: {
     backgroundColor: colors.primary,
