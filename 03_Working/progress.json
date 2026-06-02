@@ -5,13 +5,13 @@
   "currentBaseline": {
     "ideaDocument": "01_Idea/idea_.md",
     "targetUser": "한국어 근로계약서를 혼자 확인해야 하는 외국인 근로자",
-    "platform": "React Native + Expo (SDK 56) Android app",
+    "platform": "React Native + Expo (SDK 54) Android/iOS Expo Go app",
     "backend": "FastAPI",
     "ocr": "Google Vision API (검증됨: 한글 OCR 정상)",
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료(plan Task 1~11 → 12 커밋 main 미푸시; tsc+iOS 번들 통과; 수동 테스트 대기). 다음: M6 수동 검증+push → M7 다국어. 데모/제출물(M4) 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료(plan Task 1~11 → 12 커밋 main 미푸시; tsc+iOS 번들 통과; 수동 테스트 대기). 카메라 UX 개편(A: 촬영/검토 2모드+캐러셀+active 게이팅) 구현 완료. 팀원 iPhone Expo Go 테스트를 위해 Expo SDK 54로 다운그레이드 완료(expo-doctor 18/18, tsc, iOS export, expo start --go 통과). 다음: 실기기 Expo Go 수동 검증+push → M7 다국어. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "documents": {
@@ -21,7 +21,9 @@
     "roadmap": { "path": "03_Working/roadmap.md", "status": "draft" },
     "phase1Spec": { "path": "03_Working/2026-05-31_phase1_app_skeleton_spec.md", "status": "active" },
     "backendDecisions": { "path": "03_Working/2026-05-31_backend_decisions.md", "status": "done" },
-    "uiRedesign": { "path": "03_Working/2026-06-01_UI리디자인_결정.md", "status": "done" }
+    "uiRedesign": { "path": "03_Working/2026-06-01_UI리디자인_결정.md", "status": "done" },
+    "cameraCaptureUxSpec": { "path": "03_Working/2026-06-02_camera_capture_ux_spec.md", "status": "done" },
+    "cameraCaptureUxPlan": { "path": "03_Working/2026-06-02_camera_capture_ux_plan.md", "status": "done" }
   },
   "milestones": [
     {
@@ -39,7 +41,7 @@
       "id": "M1",
       "name": "앱 기본 골격",
       "status": "done",
-      "notes": "Expo SDK 56 / expo-router Stack. 코드·타입·Android 번들 통과. 실기기 Expo Go 실행은 사용자 확인 대기.",
+      "notes": "Expo SDK 54 / expo-router Stack. 코드·타입·iOS 번들 통과. App Store Expo Go 팀원 테스트 기준으로 SDK 54에 맞춤.",
       "tasks": [
         { "id": "M1-T1", "title": "Expo + TypeScript 프로젝트 생성", "status": "done" },
         { "id": "M1-T2", "title": "홈/이미지 선택/분석중/결과 화면 더미 구현", "status": "done" }
@@ -92,9 +94,9 @@
       "id": "M6",
       "name": "분석 결과 저장·재열람 + 멀티페이지",
       "status": "done",
-      "notes": "구현 완료(2026-06-02): plan Task 1~11 → 12 커밋(main 미푸시). tsc + iOS 번들(expo export) 통과, 수동 시뮬레이터/실기기 테스트 대기. historyStore(AsyncStorage 기록+expo-file-system 이미지, 파일명만 저장→런타임 복원, 동기 copySync), 멀티페이지 캡처·N장 전송·서버 List[UploadFile] 장별 OCR. 설계: 2026-06-01_phase8_저장재열람_spec.md. PRD F-12·F-13·F-16.",
+      "notes": "구현 완료(2026-06-02): plan Task 1~11 → 12 커밋(main 미푸시). tsc + iOS 번들(expo export) 통과, 수동 시뮬레이터/실기기 테스트 대기. historyStore(AsyncStorage 기록+expo-file-system 이미지, 파일명만 저장→런타임 복원, SDK 54 호환 File.copy), 멀티페이지 캡처·N장 전송·서버 List[UploadFile] 장별 OCR. 카메라 UX 개편(A) 적용: 촬영/검토 2모드, 검토 캐러셀, 갤러리 선택 후 라이브 카메라 숨김, CameraView active=focused&&capture. 설계: 2026-06-01_phase8_저장재열람_spec.md + 2026-06-02_camera_capture_ux_spec.md. PRD F-12·F-13·F-16.",
       "tasks": [
-        { "id": "M6-T1", "title": "멀티페이지 캡처(select.tsx)+멀티 업로드+서버 장별 OCR 합치기", "status": "done" },
+        { "id": "M6-T1", "title": "멀티페이지 캡처(select.tsx)+멀티 업로드+서버 장별 OCR 합치기", "status": "done", "notes": "카메라 UX 개편(A) 반영: 촬영/검토 2모드, 검토 캐러셀, 갤러리 선택 후 검토 모드, CameraView active 게이팅. tsc 통과, 수동 검증 대기." },
         { "id": "M6-T2", "title": "로컬 저장(historyStore: AsyncStorage+expo-file-system, 이미지 N장)", "status": "done" },
         { "id": "M6-T3", "title": "내역 목록 + 상세 재열람(+계약서 이미지 보기)", "status": "done" },
         { "id": "M6-T4", "title": "삭제(개별 스와이프+보이는 보조/전체)", "status": "done" },
@@ -137,8 +139,7 @@
     "04_App/server/requirements.txt 비어 있음 → README대로 pip install 시 서버 의존성 미설치(uvicorn 없음). 실제 OCR/AI 서버 실행 전 채울 것: fastapi uvicorn python-multipart python-dotenv requests openai"
   ],
   "nextActions": [
-    "[다음 세션] Phase 8 수동 검증: cd 04_App/mobile && npx expo start --go → 시뮬레이터(카메라 없음 → 갤러리로 페이지 추가) 또는 실기기 Expo Go(카메라 촬영). 2장 분석→저장→목록·재열람·삭제→앱 재시작 후 유지→서버 끈 채 '샘플' 배지. 통과 후 git push(12 커밋 미푸시)",
-    "[다음 세션] 카메라 UX 개편(A): 구현계획 완성 03_Working/2026-06-02_camera_capture_ux_plan.md (select.tsx 전체 교체 코드 포함, 촬영↔검토 2모드+캐러셀, active=focused&&capture). subagent-driven-development로 실행만",
+    "[다음 세션] Phase 8 + 카메라 UX 수동 검증: cd 04_App/mobile && npx expo start --go → 팀원 iPhone App Store Expo Go에서 QR 스캔. 갤러리로 2장 추가→자동 검토 캐러셀→삭제→분석→저장→목록·재열람·삭제→앱 재시작 후 유지→서버 끈 채 '샘플' 배지. 실기기 카메라: 연속 촬영→검토, 화면 이탈/검토 시 카메라 초록 점 꺼짐. 통과 후 git push(기존 12 커밋+카메라 UX+SDK54 변경 미푸시)",
     "[다음 세션] 마이페이지/IA(B) brainstorm: 방향 03_Working/2026-06-02_phase9_마이페이지_방향.md → Phase 9 다국어와 통합(IA 택1부터)",
     "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 국가/언어 선택 (PRD F-14·F-15)",
     "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",

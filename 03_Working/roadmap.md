@@ -8,13 +8,13 @@
 
 ## 현재 상태 & 다음 세션 시작점 (2026-06-01)
 
-**이미 된 것:** 백엔드 OCR(Google Vision)+AI(OpenAI) end-to-end 동작. 앱 UI 를 Toss 톤으로 리디자인 + 인앱 카메라 스캐너 구현(타입체크·iOS 번들 통과, 홈/촬영/결과 화면 시뮬레이터 확인). → `2026-06-01_UI리디자인_결정.md`
+**이미 된 것:** 백엔드 OCR(Google Vision)+AI(OpenAI) end-to-end 동작. 앱 UI 를 Toss 톤으로 리디자인 + 인앱 카메라 스캐너 구현(타입체크·iOS 번들 통과, 홈/촬영/결과 화면 시뮬레이터 확인). 팀원 iPhone Expo Go 테스트를 위해 Expo SDK 54로 다운그레이드 완료(`expo-doctor` 18/18, `expo start --go` 시작 확인). → `2026-06-01_UI리디자인_결정.md`
 
 **다음 세션은 여기서 시작:**
 
-1. **Phase 8 (저장·재열람 + 멀티페이지)** — ✅ **구현 완료(2026-06-02).** plan Task 1~11 → 12 커밋(main, 미푸시). tsc + iOS 번들(`expo export`) 통과. **남은 건 시뮬레이터/실기기 수동 테스트 + `git push`.** 실행: `cd 04_App/mobile && npx expo start --go`.
+1. **Phase 8 (저장·재열람 + 멀티페이지)** — ✅ **구현 완료(2026-06-02).** plan Task 1~11 → 12 커밋(main, 미푸시). tsc + iOS 번들(`expo export`) 통과. 카메라 UX 개편(A: 촬영/검토 2모드+캐러셀+active 게이팅)도 구현 완료(tsc 통과). Expo SDK 54 전환 완료. **남은 건 App Store Expo Go 실기기 수동 테스트 + `git push`.** 실행: `cd 04_App/mobile && npx expo start --go`.
 2. **Phase 9 (다국어 확장 + 마이페이지)** — 값까지 번역 + 국가 선택(14개국) → 한국어/영어/모국어. 방향 메모: `2026-06-02_phase9_마이페이지_방향.md`(마이페이지 허브로 수렴, 새 세션 brainstorm).
-3. **카메라 UX 개편(A, Phase 8 폴리시)** — spec 확정: `2026-06-02_camera_capture_ux_spec.md`(촬영↔검토 2모드 + 캐러셀, 카메라 `active=focused&&capture`로 이탈 후 꺼짐+갤러리 어색 해결). `select.tsx` 단일 파일, 구현만 남음.
+3. **카메라 UX 개편(A, Phase 8 폴리시)** — ✅ 구현 완료: `2026-06-02_camera_capture_ux_spec.md` / `2026-06-02_camera_capture_ux_plan.md`. `select.tsx` 단일 파일에 촬영↔검토 2모드, 검토 캐러셀, 카메라 `active=focused&&capture`, 갤러리 선택 후 검토 모드 전환 적용. 실기기에서 카메라 초록 점 해제만 수동 확인 필요.
 
 시작 전 `progress.json` 의 `nextActions` 와 PRD `F-12`~`F-15` 를 확인. 각 Phase 는 설계 합의(brainstorming) → 구현 순서로 진행한다.
 
@@ -122,13 +122,13 @@
 
 ## Phase 8. 분석 결과 저장·재열람 (+ 멀티페이지) (구현 done · 2026-06-02)
 
-목표: 1회성 탈피. 여러 장 계약서를 한 번에 분석하고, 결과를 기기에 저장해 다시 본다. **서버 저장 X, 로컬만 · 계정 없음**(PRD §9 유지). 설계: `2026-06-01_phase8_저장재열람_spec.md` / 구현계획: `2026-06-01_phase8_저장재열람_plan.md`. **구현 완료(tsc+iOS 번들 통과), 수동 테스트 대기.**
+목표: 1회성 탈피. 여러 장 계약서를 한 번에 분석하고, 결과를 기기에 저장해 다시 본다. **서버 저장 X, 로컬만 · 계정 없음**(PRD §9 유지). 설계: `2026-06-01_phase8_저장재열람_spec.md` / 구현계획: `2026-06-01_phase8_저장재열람_plan.md`. 카메라 UX 개편(A) 설계: `2026-06-02_camera_capture_ux_spec.md` / 구현계획: `2026-06-02_camera_capture_ux_plan.md`. **구현 완료(tsc+iOS 번들 통과), SDK 54 Expo Go 호환 전환 완료, 수동 테스트 대기.**
 
 저장 방식 확정: AsyncStorage(기록 JSON) + expo-file-system(이미지 N장).
 
 | 작업 | 완료 기준 | 상태 |
 |---|---|---|
-| 멀티페이지 캡처 | 촬영/갤러리로 여러 장 추가·삭제, 썸네일 스트립(탭하여 확인) | done |
+| 멀티페이지 캡처 | 촬영/갤러리로 여러 장 추가·삭제, 촬영↔검토 2모드, 검토 캐러셀, 갤러리 선택 후 검토 모드, 카메라 active 게이팅 | done |
 | 멀티이미지 분석 | 앱이 N장 업로드 → 서버 장별 OCR 합쳐 분석 | done |
 | 로컬 저장 | 분석 직후 결과 + 이미지 N장 + 시각 저장(샘플 폴백은 '샘플' 표시) | done |
 | 내역 목록 화면 | 썸네일·N장·날짜·요약·주의건수, "이 기기에만 저장" 안내 | done |

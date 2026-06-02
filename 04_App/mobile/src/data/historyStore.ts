@@ -48,7 +48,7 @@ export async function save(
     try {
       imageUris.forEach((uri, i) => {
         const name = `page-${i + 1}.jpg`;
-        new File(uri).copySync(new File(dir, name));
+        new File(uri).copy(new File(dir, name));
         imageFiles.push(name);
       });
     } catch (err) {

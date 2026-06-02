@@ -1,29 +1,46 @@
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, shadow, spacing } from '@/constants/theme';
 import { session } from '@/data/session';
 
+type Mode = 'capture' | 'review';
+
+const clampIndex = (index: number, length: number) => {
+  if (length <= 0) return 0;
+  return Math.min(Math.max(index, 0), length - 1);
+};
+
 export default function CaptureScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
+  const carouselRef = useRef<ScrollView>(null);
   const [permission, requestPermission] = useCameraPermissions();
 
   const [pages, setPages] = useState<string[]>([]);
-  const [preview, setPreview] = useState<string | null>(null); // 크게 보기 모달
+  const [mode, setMode] = useState<Mode>('capture');
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  // 스캔 라인 위아래 이동 애니메이션 (라이브 모드에서만)
-  const scanY = useRef(new Animated.Value(0)).current;
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [frameW, setFrameW] = useState(0);
   const [frameH, setFrameH] = useState(0);
+
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
+  const scanY = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -35,8 +52,27 @@ export default function CaptureScreen() {
     return () => loop.stop();
   }, [scanY]);
 
+  useEffect(() => {
+    setReviewIndex((i) => clampIndex(i, pages.length));
+    if (pages.length === 0 && mode === 'review') setMode('capture');
+  }, [mode, pages.length]);
+
+  const goReview = (index: number) => {
+    setReviewIndex(clampIndex(index, pages.length));
+    setMode('review');
+  };
+
+  const enterCapture = async () => {
+    if (permission?.granted) {
+      setMode('capture');
+      return;
+    }
+    const nextPermission = await requestPermission();
+    if (nextPermission.granted) setMode('capture');
+  };
+
   const takePhoto = async () => {
-    if (busy) return;
+    if (busy || !permission?.granted) return;
     setBusy(true);
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.9 });
@@ -54,10 +90,33 @@ export default function CaptureScreen() {
       allowsMultipleSelection: true,
       quality: 1,
     });
-    if (!result.canceled) setPages((p) => [...p, ...result.assets.map((a) => a.uri)]);
+    if (result.canceled) return;
+    const added = result.assets.map((a) => a.uri);
+    setPages((p) => {
+      const next = [...p, ...added];
+      const firstNew = next.length - added.length;
+      const nextIndex = clampIndex(firstNew, next.length);
+      setReviewIndex(nextIndex);
+      requestAnimationFrame(() => carouselRef.current?.scrollTo({ x: firstNew * frameW, animated: false }));
+      return next;
+    });
+    setMode('review');
   };
 
-  const removePage = (i: number) => setPages((p) => p.filter((_, idx) => idx !== i));
+  const removeCurrent = () => {
+    const i = clampIndex(reviewIndex, pages.length);
+    setPages((p) => {
+      const next = p.filter((_, idx) => idx !== i);
+      if (next.length === 0) {
+        setMode('capture');
+        return next;
+      }
+      const newIndex = clampIndex(i, next.length);
+      setReviewIndex(newIndex);
+      requestAnimationFrame(() => carouselRef.current?.scrollTo({ x: newIndex * frameW, animated: false }));
+      return next;
+    });
+  };
 
   const analyze = () => {
     if (pages.length === 0) return;
@@ -65,7 +124,6 @@ export default function CaptureScreen() {
     router.push('/loading');
   };
 
-  // --- 권한 로딩/거부 상태 ---
   if (!permission) {
     return <View style={styles.root} />;
   }
@@ -97,6 +155,8 @@ export default function CaptureScreen() {
     inputRange: [0, 1],
     outputRange: [14, Math.max(14, frameH - 18)],
   });
+  const cameraActive = focused && mode === 'capture' && permission.granted;
+  const safeReviewIndex = clampIndex(reviewIndex, pages.length);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -105,23 +165,72 @@ export default function CaptureScreen() {
         insetTop={0}
         onBack={() => router.back()}
         torch={torch}
-        onTorch={permission.granted ? () => setTorch((v) => !v) : undefined}
+        onTorch={mode === 'capture' && permission.granted ? () => setTorch((v) => !v) : undefined}
       />
 
       <Text style={styles.hint}>
-        {pages.length === 0
-          ? '계약서를 네모 칸에 꽉 차게 맞춰 주세요'
-          : `${pages.length}장 추가됨 · 다음 장을 찍거나 분석을 시작하세요`}
+        {mode === 'review'
+          ? `${pages.length}장 · 넘겨서 확인하세요`
+          : pages.length === 0
+            ? '계약서를 네모 칸에 꽉 차게 맞춰 주세요'
+            : `${pages.length}장 추가됨 · 다음 장을 찍거나 검토하세요`}
       </Text>
 
       <View style={styles.frameWrap}>
-        <View style={styles.frame} onLayout={(e) => setFrameH(e.nativeEvent.layout.height)}>
-          {permission.granted && (
-            <>
-              <CameraView ref={cameraRef} style={styles.fill} facing="back" enableTorch={torch} />
-              <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
-            </>
-          )}
+        <View
+          style={styles.frame}
+          onLayout={(e) => {
+            setFrameH(e.nativeEvent.layout.height);
+            setFrameW(e.nativeEvent.layout.width);
+          }}>
+          {mode === 'capture'
+            ? permission.granted && (
+                <>
+                  <CameraView
+                    ref={cameraRef}
+                    style={styles.fill}
+                    facing="back"
+                    enableTorch={torch}
+                    active={cameraActive}
+                  />
+                  <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
+                </>
+              )
+            : frameW > 0 && (
+                <>
+                  <ScrollView
+                    ref={carouselRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    contentOffset={{ x: safeReviewIndex * frameW, y: 0 }}
+                    onMomentumScrollEnd={(e) => {
+                      const nextIndex = clampIndex(
+                        Math.round(e.nativeEvent.contentOffset.x / frameW),
+                        pages.length,
+                      );
+                      setReviewIndex(nextIndex);
+                      if (nextIndex !== reviewIndex) {
+                        carouselRef.current?.scrollTo({ x: nextIndex * frameW, animated: true });
+                      }
+                    }}>
+                    {pages.map((uri, i) => (
+                      <Image
+                        key={uri + i}
+                        source={{ uri }}
+                        style={{ width: frameW, height: '100%' }}
+                        resizeMode="contain"
+                      />
+                    ))}
+                  </ScrollView>
+                  <Text style={styles.pageIndicator}>
+                    {safeReviewIndex + 1} / {pages.length}
+                  </Text>
+                  <Pressable style={styles.reviewDel} hitSlop={8} onPress={removeCurrent}>
+                    <Feather name="trash-2" size={16} color={colors.white} />
+                  </Pressable>
+                </>
+              )}
           <View style={[styles.corner, styles.cTL]} />
           <View style={[styles.corner, styles.cTR]} />
           <View style={[styles.corner, styles.cBL]} />
@@ -130,58 +239,78 @@ export default function CaptureScreen() {
       </View>
 
       <View style={[styles.controls, { paddingBottom: insets.bottom + spacing.sm }]}>
-        {pages.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip}
-            contentContainerStyle={styles.stripContent}>
-            {pages.map((uri, i) => (
-              <Pressable key={uri + i} style={styles.thumbWrap} onPress={() => setPreview(uri)}>
-                <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
-                <Text style={styles.thumbNum}>{i + 1}</Text>
-                <Pressable hitSlop={8} style={styles.thumbDel} onPress={() => removePage(i)}>
-                  <Feather name="x" size={12} color={colors.white} />
-                </Pressable>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
-        <View style={styles.shutterRow}>
-          <Pressable style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]}
-            onPress={pickFromGallery}>
-            <Feather name="image" size={22} color={colors.cameraTextDim} />
-          </Pressable>
-          <Pressable onPress={takePhoto} disabled={busy} hitSlop={12}>
-            {({ pressed }) => (
-              <View style={[styles.shutterOuter, pressed && { transform: [{ scale: 0.93 }] }]}>
-                <View style={styles.shutterInner} />
-              </View>
+        {mode === 'capture' ? (
+          <>
+            {pages.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.strip}
+                contentContainerStyle={styles.stripContent}>
+                {pages.map((uri, i) => (
+                  <Pressable key={uri + i} style={styles.thumbWrap} onPress={() => goReview(i)}>
+                    <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
+                    <Text style={styles.thumbNum}>{i + 1}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             )}
-          </Pressable>
-          <View style={styles.sideButton} />
-        </View>
-
-        {pages.length > 0 && (
-          <Pressable style={({ pressed }) => [styles.analyzeButton, shadow.button, pressed && styles.pressed]}
-            onPress={analyze}>
-            <Text style={styles.analyzeText}>분석하기 ({pages.length}장)</Text>
-          </Pressable>
-        )}
-        {pages.length > 0 && (
-          <Text style={styles.tip}>썸네일을 탭하면 크게 볼 수 있고, ×로 지울 수 있어요</Text>
+            <View style={styles.shutterRow}>
+              <Pressable
+                style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]}
+                onPress={pickFromGallery}>
+                <Feather name="image" size={22} color={colors.cameraTextDim} />
+              </Pressable>
+              <Pressable onPress={takePhoto} disabled={busy || !permission.granted} hitSlop={12}>
+                {({ pressed }) => (
+                  <View
+                    style={[
+                      styles.shutterOuter,
+                      !permission.granted && styles.shutterDisabled,
+                      pressed && permission.granted && { transform: [{ scale: 0.93 }] },
+                    ]}>
+                    <View style={styles.shutterInner} />
+                  </View>
+                )}
+              </Pressable>
+              {pages.length > 0 ? (
+                <Pressable
+                  style={({ pressed }) => [styles.reviewChip, pressed && styles.pressed]}
+                  onPress={() => goReview(pages.length - 1)}>
+                  <Text style={styles.reviewChipText}>검토 {pages.length}</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.sideButton} />
+              )}
+            </View>
+            {pages.length === 0 && (
+              <Text style={styles.tip}>그림자 없이 글자가 또렷하게 나오도록 맞춰 주세요</Text>
+            )}
+          </>
+        ) : (
+          <>
+            <View style={styles.reviewActions}>
+              <Pressable
+                style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                onPress={enterCapture}>
+                <Feather name="camera" size={18} color={colors.white} />
+                <Text style={styles.secondaryText}>{permission.granted ? '촬영' : '촬영 권한'}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                onPress={pickFromGallery}>
+                <Feather name="image" size={18} color={colors.white} />
+                <Text style={styles.secondaryText}>갤러리</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.analyzeButton, shadow.button, pressed && styles.pressed]}
+              onPress={analyze}>
+              <Text style={styles.analyzeText}>분석하기 ({pages.length}장)</Text>
+            </Pressable>
+          </>
         )}
       </View>
-
-      {pages.length === 0 && (
-        <Text style={[styles.tip, { paddingBottom: insets.bottom + spacing.md }]}>
-          그림자 없이 글자가 또렷하게 나오도록 맞춰 주세요
-        </Text>
-      )}
-
-      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
-        <Pressable style={styles.previewBackdrop} onPress={() => setPreview(null)}>
-          {preview && <Image source={{ uri: preview }} style={styles.previewImg} resizeMode="contain" />}
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -255,6 +384,30 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
+  pageIndicator: {
+    position: 'absolute',
+    top: 10,
+    alignSelf: 'center',
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.white,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  reviewDel: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   corner: { position: 'absolute', width: BRACKET, height: BRACKET, borderColor: colors.primary },
   cTL: { top: 12, left: 12, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 8 },
   cTR: { top: 12, right: 12, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 8 },
@@ -262,6 +415,22 @@ const styles = StyleSheet.create({
   cBR: { bottom: 12, right: 12, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 8 },
 
   controls: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xl },
+  strip: { maxHeight: 76, marginBottom: spacing.md },
+  stripContent: { gap: spacing.sm, paddingHorizontal: 2 },
+  thumbWrap: { width: 54, height: 70, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.cameraSurface },
+  thumb: { width: '100%', height: '100%' },
+  thumbNum: {
+    position: 'absolute',
+    left: 3,
+    bottom: 3,
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.white,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
   shutterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sideButton: {
     width: 48,
@@ -271,6 +440,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  reviewChip: {
+    minWidth: 48,
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 13,
+    backgroundColor: colors.cameraSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewChipText: { fontSize: 12, fontWeight: '800', color: colors.cameraTextDim },
   shutterOuter: {
     width: 74,
     height: 74,
@@ -281,33 +460,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.white },
+  shutterDisabled: { opacity: 0.35 },
 
+  reviewActions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  secondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: radius.lg,
+    backgroundColor: colors.cameraSurface,
+  },
+  secondaryText: { color: colors.white, fontSize: 15, fontWeight: '700' },
   analyzeButton: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     borderRadius: radius.lg,
     backgroundColor: colors.primary,
-    marginTop: spacing.md,
   },
   analyzeText: { color: colors.white, fontSize: 16, fontWeight: '800' },
-
-  strip: { maxHeight: 76, marginBottom: spacing.md },
-  stripContent: { gap: spacing.sm, paddingHorizontal: 2 },
-  thumbWrap: { width: 54, height: 70, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.cameraSurface },
-  thumb: { width: '100%', height: '100%' },
-  thumbNum: { position: 'absolute', left: 3, bottom: 3, fontSize: 10, fontWeight: '800', color: colors.white,
-    backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 4, borderRadius: 4, overflow: 'hidden' },
-  thumbDel: { position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  previewBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  previewImg: { width: '100%', height: '80%' },
 
   tip: { textAlign: 'center', fontSize: 11, color: colors.textTertiary, paddingTop: spacing.md, paddingHorizontal: spacing.xl },
 
   pressed: { opacity: 0.85 },
 
-  // 권한 화면
   permWrap: { paddingHorizontal: spacing.xl },
   permCard: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   permIcon: {
