@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,10 +15,25 @@ import { useI18n } from '@/i18n/useI18n';
 
 type Mode = 'capture' | 'review';
 
+const OCR_IMAGE_MAX_WIDTH = 1600;
+const OCR_IMAGE_QUALITY = 0.72;
+
 const clampIndex = (index: number, length: number) => {
   if (length <= 0) return 0;
   return Math.min(Math.max(index, 0), length - 1);
 };
+
+async function prepareContractImage(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: OCR_IMAGE_MAX_WIDTH } }],
+    {
+      compress: OCR_IMAGE_QUALITY,
+      format: ImageManipulator.SaveFormat.JPEG,
+    },
+  );
+  return result.uri;
+}
 
 export default function CaptureScreen() {
   const router = useRouter();
@@ -78,32 +94,41 @@ export default function CaptureScreen() {
     if (busy || !permission?.granted) return;
     setBusy(true);
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.9 });
-      if (photo?.uri) setPages((p) => [...p, photo.uri]);
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.78 });
+      if (photo?.uri) {
+        const preparedUri = await prepareContractImage(photo.uri);
+        setPages((p) => [...p, preparedUri]);
+      }
     } finally {
       setBusy(false);
     }
   };
 
   const pickFromGallery = async () => {
+    if (busy) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      quality: 1,
-    });
-    if (result.canceled) return;
-    const added = result.assets.map((a) => a.uri);
-    setPages((p) => {
-      const next = [...p, ...added];
-      const firstNew = next.length - added.length;
-      const nextIndex = clampIndex(firstNew, next.length);
-      setReviewIndex(nextIndex);
-      requestAnimationFrame(() => carouselRef.current?.scrollTo({ x: firstNew * frameW, animated: false }));
-      return next;
-    });
-    setMode('review');
+    setBusy(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      const added = await Promise.all(result.assets.map((a) => prepareContractImage(a.uri)));
+      setPages((p) => {
+        const next = [...p, ...added];
+        const firstNew = next.length - added.length;
+        const nextIndex = clampIndex(firstNew, next.length);
+        setReviewIndex(nextIndex);
+        requestAnimationFrame(() => carouselRef.current?.scrollTo({ x: firstNew * frameW, animated: false }));
+        return next;
+      });
+      setMode('review');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const removeCurrent = () => {
@@ -262,6 +287,7 @@ export default function CaptureScreen() {
             <View style={styles.shutterRow}>
               <Pressable
                 style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]}
+                disabled={busy}
                 onPress={pickFromGallery}>
                 <Feather name="image" size={22} color={colors.cameraTextDim} />
               </Pressable>
@@ -302,6 +328,7 @@ export default function CaptureScreen() {
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                disabled={busy}
                 onPress={pickFromGallery}>
                 <Feather name="image" size={18} color={colors.white} />
                 <Text style={styles.secondaryText}>{t.select.gallery}</Text>

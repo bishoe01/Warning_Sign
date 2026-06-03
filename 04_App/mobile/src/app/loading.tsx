@@ -1,13 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { analyzeContract } from '@/api/contractApi';
 import { colors, spacing } from '@/constants/theme';
 import * as historyStore from '@/data/historyStore';
-import { sampleAnalysis } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -17,6 +16,7 @@ export default function LoadingScreen() {
   const router = useRouter();
   const { language, t } = useI18n();
   const [step, setStep] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const pageCount = session.getImages().length;
   const STEPS = useMemo(() => [
@@ -55,28 +55,24 @@ export default function LoadingScreen() {
     const startedAt = Date.now();
     const minDisplayMs = STEPS.length * STEP_MS;
 
-    // 서버에 분석 요청. 실패하면 로컬 샘플로 폴백(데모가 끊기지 않게).
     void (async () => {
       const uris = session.getImages();
-      let result = sampleAnalysis;
-      let isSample = uris.length === 0; // 이미지 없으면 샘플
-      let error: string | null = uris.length === 0 ? 'no-image' : null;
-      try {
-        if (uris.length > 0) {
-          result = await analyzeContract(uris, language);
-          isSample = !!result.isSample;
-          error = null;
-        }
-      } catch (err) {
-        result = sampleAnalysis;
-        isSample = true; // 서버 실패 → 샘플 폴백
-        error = err instanceof Error ? err.message : 'request failed';
+      if (uris.length === 0) {
+        setError('분석할 계약서 사진이 없습니다.');
+        return;
       }
-      if (cancelled) return;
-      session.setResult(result, { isSample, error });
-      void historyStore.save(result, uris, { isSample }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
-      const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
-      timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, wait));
+      try {
+        const result = await analyzeContract(uris, language);
+        if (cancelled) return;
+        const isSample = !!result.isSample;
+        session.setResult(result, { isSample, error: null });
+        void historyStore.save(result, uris, { isSample }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
+        const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
+        timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, wait));
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'request failed');
+      }
     })();
 
     return () => {
@@ -87,6 +83,33 @@ export default function LoadingScreen() {
 
   const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] });
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.container}>
+          <View style={styles.errorIcon}>
+            <Feather name="alert-triangle" size={32} color="#B45309" />
+          </View>
+          <View style={styles.errorCopy}>
+            <Text style={styles.errorTitle}>분석에 실패했어요</Text>
+            <Text style={styles.errorDesc}>
+              서버가 실제 분석을 끝내지 못했습니다. 더미 결과를 보여주지 않고 다시 시도하도록 막았습니다.
+            </Text>
+            <Text style={styles.errorReason}>{error}</Text>
+          </View>
+          <View style={styles.errorActions}>
+            <Pressable style={styles.secondaryBtn} onPress={() => router.replace('/select')}>
+              <Text style={styles.secondaryText}>다시 촬영</Text>
+            </Pressable>
+            <Pressable style={styles.primaryBtn} onPress={() => router.replace('/')}>
+              <Text style={styles.primaryText}>홈으로</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -129,4 +152,31 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: 6, width: 160 },
   segment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
   segmentActive: { backgroundColor: colors.primary },
+  errorIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    backgroundColor: '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorCopy: { gap: spacing.sm, alignItems: 'center' },
+  errorTitle: { fontSize: 20, fontWeight: '900', color: colors.text },
+  errorDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 22, textAlign: 'center' },
+  errorReason: { fontSize: 12, color: colors.textTertiary, lineHeight: 18, textAlign: 'center' },
+  errorActions: { flexDirection: 'row', gap: spacing.sm },
+  secondaryBtn: {
+    paddingVertical: 13,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 16,
+    backgroundColor: colors.bgElevated,
+  },
+  secondaryText: { fontSize: 15, fontWeight: '800', color: colors.textSecondary },
+  primaryBtn: {
+    paddingVertical: 13,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+  },
+  primaryText: { fontSize: 15, fontWeight: '800', color: colors.white },
 });

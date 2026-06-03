@@ -15,11 +15,28 @@ export type Summary = {
   deduction: LocalizedText;
 };
 
+export type SourceBox = {
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type SourceMatch = {
+  pageIndex: number;
+  quote: string;
+  boxes: SourceBox[];
+  confidence: 'high' | 'medium' | 'low';
+  matchType: 'exact' | 'normalized' | 'fuzzy';
+};
+
 export type CautionItem = {
   level: CautionLevel;
   title: LocalizedText;
   originalText: string;
   explanation: LocalizedText;
+  source?: SourceMatch;
 };
 
 export type AnalysisResult = {

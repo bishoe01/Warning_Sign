@@ -1,6 +1,6 @@
 {
   "project": "AI 근로계약서 도우미 MVP",
-  "updatedAt": "2026-06-02",
+  "updatedAt": "2026-06-03",
   "status": "building",
   "currentBaseline": {
     "ideaDocument": "01_Idea/idea_.md",
@@ -11,7 +11,7 @@
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료(plan Task 1~11 → 12 커밋 main 미푸시; tsc+iOS 번들 통과; 수동 테스트 대기). 카메라 UX 개편(A: 촬영/검토 2모드+캐러셀+active 게이팅) 구현 완료. 팀원 iPhone Expo Go 테스트를 위해 Expo SDK 54로 다운그레이드 완료(expo-doctor 18/18, tsc, iOS export, expo start --go 통과). 다음: 실기기 Expo Go 수동 검증+push → M7 다국어. 데모/제출물(M4) 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료. M7(다국어 확장+마이페이지) 구현 완료: 앱 전역 언어 설정, 16개 언어 UI 문구, localized 분석 결과 모델, 서버 language 파라미터/프롬프트 확장, 샘플 배너. 2026-06-02/03 버그픽스: 서버 .env를 config.py 기준 경로에서 읽게 하고, real OCR/AI 실패를 200 샘플로 덮지 않고 502로 반환하며, 앱도 업로드 실패를 로컬 더미 결과로 대체하지 않게 수정. iPhone 원본/HEIC/대용량 이미지로 인한 OCR 실패를 줄이기 위해 업로드 전 expo-image-manipulator로 최대폭 1600px JPEG(0.72) 정규화 적용. 앱 분석 요청 전 /health 사전 확인(6초)과 분석 업로드 타임아웃(65초)을 추가해 백엔드 미도달 시 무한 OCR 로딩처럼 보이지 않게 수정. Phase 10 준비로 cautionItems[].source 타입만 모바일/서버 모델에 추가. 2026-06-03 다음 기획 확정: 프롬프트 품질 조율 → 동적 다국어 보강 → 결과 UI/UX 정비 → OCR 좌표 기반 사진 출처 하이라이트 → 데모 QA. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "documents": {
@@ -25,8 +25,10 @@
     "cameraCaptureUxSpec": { "path": "03_Working/2026-06-02_camera_capture_ux_spec.md", "status": "done" },
     "cameraCaptureUxPlan": { "path": "03_Working/2026-06-02_camera_capture_ux_plan.md", "status": "done" },
     "phase9IaI18nDesign": { "path": "03_Working/2026-06-02_phase9_IA_다국어_설계.md", "status": "review" },
-    "phase9ImplementationPlan": { "path": "03_Working/2026-06-02_phase9_구현계획.md", "status": "active" },
-    "phase10SourceHighlightDesign": { "path": "03_Working/2026-06-02_phase10_사진출처_하이라이트_설계메모.md", "status": "review" }
+    "phase9ImplementationPlan": { "path": "03_Working/2026-06-02_phase9_구현계획.md", "status": "done" },
+    "ocrFailureQualityTuning": { "path": "03_Working/2026-06-02_OCR실패_더미방지_이미지정규화_품질조율.md", "status": "done" },
+    "phase10SourceHighlightDesign": { "path": "03_Working/2026-06-02_phase10_사진출처_하이라이트_설계메모.md", "status": "active" },
+    "nextPlanningPromptUxSourceI18n": { "path": "03_Working/2026-06-03_다음기획_프롬프트_UIUX_출처하이라이트_다국어.md", "status": "active" }
   },
   "milestones": [
     {
@@ -109,20 +111,20 @@
     {
       "id": "M7",
       "name": "다국어 확장 + 마이페이지(언어 설정)",
-      "status": "in_progress",
-      "notes": "구현 시작(2026-06-02): i18n/settingsStore/LanguageTabs/settings 화면/홈 최근 분석/결과 localized 모델/서버 localized 응답 구조 적용. 빈 표준계약서 양식은 실제 값처럼 채우지 않고 '기재 없음'으로 처리하도록 AI 프롬프트 수정 후 sign-0/sign-1 curl 검증 통과. 이후 100원/100시처럼 값은 있으나 비정상인 경우는 미기재가 아니라 비정상 기재로 분류하도록 프롬프트 보정. 노무사식 체크리스트 강화 후 비정상 임금/근무시간/휴게시간, 숙식비 공제, 교육비 반환, 여권 보관, 수당 미지급 7개 항목 직접 analyze 검증 통과. 서버/로컬 샘플 폴백은 isSample 플래그와 결과 화면 샘플 배너로 표시. tsc, py_compile 통과. 남은 작업: 14개 대상 언어 UI 문구를 English fallback 없이 채우고, Expo 화면 QA.",
+      "status": "done",
+      "notes": "구현 완료(2026-06-02): i18n/settingsStore/LanguageTabs/settings 화면/홈 최근 분석/결과 localized 모델/서버 localized 응답 구조 적용. 16개 언어 UI 문구 key shape 완료, ne/tet/ru/mn/my/bn/uz/id/zh/km/ky/th/lo English alias 제거. 빈 표준계약서 양식은 실제 값처럼 채우지 않고 '기재 없음'으로 처리하도록 AI 프롬프트 수정 후 sign-0/sign-1 curl 검증 통과. 이후 100원/100시처럼 값은 있으나 비정상인 경우는 미기재가 아니라 비정상 기재로 분류하도록 프롬프트 보정. 노무사식 체크리스트 강화 후 비정상 임금/근무시간/휴게시간, 숙식비 공제, 교육비 반환, 여권 보관, 수당 미지급 7개 항목 직접 analyze 검증 통과. 샘플 결과는 키가 없는 명시적 샘플 모드에서만 서버가 200으로 반환한다. real OCR/AI 실패는 502, 앱 업로드 실패는 오류 화면으로 처리해 더미 결과로 넘어가지 않게 수정. 촬영/갤러리 이미지는 업로드 전 JPEG 정규화/압축한다. tsc, py_compile, progress.json jq, iOS export 통과. 실기기 Expo Go 화면 QA는 남음.",
       "tasks": [
-        { "id": "M7-T1", "title": "마이페이지 언어 설정 + 로컬 저장", "status": "in_progress", "notes": "settingsStore + settings 화면 + 언어 선택 저장 구현, 화면 QA 대기" },
-        { "id": "M7-T2", "title": "언어 모델 확장(앱 UI + 14개 결과 언어)", "status": "in_progress", "notes": "언어 코드/탭/타입 구조 구현. 비영어권 UI 문구는 베트남어만 채워짐, 나머지는 fallback 해소 필요" },
-        { "id": "M7-T3", "title": "값 번역 방식 결정·구현", "status": "in_progress", "notes": "localized result 모델 적용. 서버는 ko/en/요청언어 생성 방식. 빈 양식은 추측값 대신 기재 없음 처리, 값은 있으나 비정상인 경우는 비정상 기재로 표시" },
-        { "id": "M7-T4", "title": "백엔드 language 파라미터 확장 + 결과 적용", "status": "in_progress", "notes": "16개 language 허용 + Pydantic localized schema 적용. sign-0/sign-1 language=ky curl 검증 통과" }
+        { "id": "M7-T1", "title": "마이페이지 언어 설정 + 로컬 저장", "status": "done", "notes": "settingsStore + settings 화면 + 언어 선택 저장 구현, 화면 QA 대기" },
+        { "id": "M7-T2", "title": "언어 모델 확장(앱 UI + 14개 결과 언어)", "status": "done", "notes": "언어 코드/탭/타입 구조 구현. 16개 언어 UI 문구 key shape 완료, English alias 제거" },
+        { "id": "M7-T3", "title": "값 번역 방식 결정·구현", "status": "done", "notes": "localized result 모델 적용. 서버는 ko/en/요청언어 생성 방식. 빈 양식은 추측값 대신 기재 없음 처리, 값은 있으나 비정상인 경우는 비정상 기재로 표시" },
+        { "id": "M7-T4", "title": "백엔드 language 파라미터 확장 + 결과 적용", "status": "done", "notes": "16개 language 허용 + Pydantic localized schema 적용. sign-0/sign-1 language=ky curl 검증 통과. README도 files+16개 language 기준으로 갱신" }
       ]
     },
     {
       "id": "M8",
       "name": "사진 출처 하이라이트 (후속)",
       "status": "todo",
-      "notes": "주의 조항이 실제 계약서 사진 어디에서 나온 것인지 보여주는 신뢰 UX. AI가 좌표를 생성하지 않고, 서버가 OCR bounding box와 originalText/sourceQuote를 매칭해 source 좌표와 confidence를 붙인다. 결과 카드에는 사진에서 확인, 이미지 뷰어에는 하이라이트, 매칭 실패 시 낮은 신뢰도 안내. 설계: 2026-06-02_phase10_사진출처_하이라이트_설계메모.md. roadmap Phase 10. PRD F-17. 이후 새 기록만 적용.",
+      "notes": "주의 조항이 실제 계약서 사진 어디에서 나온 것인지 보여주는 신뢰 UX. AI가 좌표를 생성하지 않고, 서버가 OCR bounding box와 originalText/sourceQuote를 매칭해 source 좌표와 confidence를 붙인다. 결과 카드에는 사진에서 확인, 이미지 뷰어에는 하이라이트, 매칭 실패 시 낮은 신뢰도 안내. 설계: 2026-06-02_phase10_사진출처_하이라이트_설계메모.md. roadmap Phase 10. PRD F-17. 이후 새 기록만 적용. 준비 완료: 모바일/서버 모델에 선택 필드 cautionItems[].source 타입 추가.",
       "tasks": [
         { "id": "M8-T1", "title": "서버 OCR 좌표 보존/정규화", "status": "todo" },
         { "id": "M8-T2", "title": "originalText/sourceQuote ↔ OCR 좌표 매칭", "status": "todo" },
@@ -130,24 +132,37 @@
         { "id": "M8-T4", "title": "원본 이미지 뷰어 하이라이트 + 낮은 신뢰도 안내", "status": "todo" },
         { "id": "M8-T5", "title": "새 기록 source 좌표 저장", "status": "todo" }
       ]
+    },
+    {
+      "id": "M9",
+      "name": "프롬프트 품질 조율 + 동적 다국어 보강",
+      "status": "todo",
+      "notes": "2026-06-03 다음 기획 문서 기준. 바로 하이라이트 UI 구현으로 들어가지 않고, AI originalText/sourceQuote 품질과 결과 화면 언어 후변경 보강을 먼저 해결한다. 동적 다국어 현재 문제: 분석 당시 생성되지 않은 언어 key가 없으면 getLocalized가 영어로 fallback한다.",
+      "tasks": [
+        { "id": "M9-T1", "title": "프롬프트 구조 정리 + originalText 품질 기준 강화", "status": "todo" },
+        { "id": "M9-T2", "title": "golden OCR 케이스와 AI JSON 검증 기준 작성", "status": "todo" },
+        { "id": "M9-T3", "title": "결과 화면 언어 key 누락 감지", "status": "todo" },
+        { "id": "M9-T4", "title": "on-demand localization API + session/history 병합 캐시", "status": "todo" },
+        { "id": "M9-T5", "title": "결과 UI/UX 정비: 언어 전환, 주의 카드, 사진에서 확인 진입", "status": "todo" }
+      ]
     }
   ],
   "openQuestions": [
     "[저장] 결정: AsyncStorage(기록)+expo-file-system(이미지 N장)·기록별 폴더, 원본 보관(다운스케일 후순위), 멀티페이지 포함",
-    "[다국어] 값 번역을 AI 생성 vs 번역으로 할지, 계약 원문은 한국어 유지할지, 앱 전체 UI 번역 키를 어떻게 검수할지",
+    "[다국어] 구현 결정 완료: UI와 결과 언어는 같은 설정을 사용하고, 서버가 ko/en/요청언어 결과를 생성한다. 계약 원문(originalText/ocrText)은 한국어 원문을 유지한다. 실제 번역 문구는 원어민 검수 권장",
     "OCR 은 Google Vision 으로 확정·검증 (CLOVA 전환은 선택)",
     "실제 표준근로계약서 샘플 1장 출처 (현재는 데모 샘플)",
     "상담기관 명칭/연락처를 결과 화면에 넣을지"
   ],
   "blockers": [
-    "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)",
-    "04_App/server/requirements.txt 비어 있음 → README대로 pip install 시 서버 의존성 미설치(uvicorn 없음). 실제 OCR/AI 서버 실행 전 채울 것: fastapi uvicorn python-multipart python-dotenv requests openai"
+    "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)"
   ],
   "nextActions": [
-    "[다음 세션] Phase 8 + 카메라 UX 수동 검증: cd 04_App/mobile && npx expo start --go → 팀원 iPhone App Store Expo Go에서 QR 스캔. 갤러리로 2장 추가→자동 검토 캐러셀→삭제→분석→저장→목록·재열람·삭제→앱 재시작 후 유지→서버 끈 채 '샘플' 배지. 실기기 카메라: 연속 촬영→검토, 화면 이탈/검토 시 카메라 초록 점 꺼짐. 통과 후 git push(기존 12 커밋+카메라 UX+SDK54 변경 미푸시)",
-    "[다음 세션] Phase 9 구현 계획: 기준 03_Working/2026-06-02_phase9_IA_다국어_설계.md. 홈 Toss 톤 유지, 언어 토글/리스트, 마이페이지 언어 설정/기록/로컬 저장 안내",
-    "[다음 세션] Phase 9 / M7: 값 포함 다국어 + 마이페이지 언어 설정. 선택 언어가 앱 전체 UI와 분석 결과에 함께 적용되도록 구현 (PRD F-14·F-15)",
-    "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (config.ts API_BASE_URL 을 PC LAN IP 로)",
+    "[다음 세션 첫 작업] 03_Working/2026-06-03_다음기획_프롬프트_UIUX_출처하이라이트_다국어.md 기준으로 프롬프트 품질 조율부터 시작한다. 먼저 04_App/server/ai_service.py 의 프롬프트를 역할·출력형식·체크리스트·추출규칙·다국어 규칙으로 정리하고, originalText가 OCR 원문과 매칭 가능한 짧은 한국어 인용인지 검증한다.",
+    "[다음 세션 두 번째] 동적 다국어 fallback 문제 해결 계획대로 구현한다. 현재 원인: 서버가 ko/en/요청언어만 만들고, 결과 화면에서 다른 언어를 누르면 해당 key가 없어 getLocalized가 영어로 fallback한다. 권장: on-demand localization API + session/history 병합 캐시.",
+    "[그 다음] 결과 UI/UX 정비 후 Phase 10 사진 출처 하이라이트 구현. 하이라이트는 03_Working/2026-06-02_phase10_사진출처_하이라이트_설계메모.md 기준으로 서버 OCR 좌표 보존 → originalText/sourceQuote와 OCR box 매칭 → source confidence 반환 → 앱 이미지 뷰어 오버레이 순서.",
+    "[실기기 검증 유지] Mac과 iPhone Safari 양쪽에서 http://<iPhone에서-열리는-IP>:8000/health 가 real/real 로 열리는지 확인. 통과한 주소로 cd 04_App/mobile && EXPO_PUBLIC_API_BASE_URL=http://<iPhone에서-열리는-IP>:8000 npx expo start --go --host lan --clear. 112.170.4.114 같은 공인 IP는 /health가 실제로 열릴 때만 사용한다.",
+    "실기기 Expo Go + 서버 연결로 실제 사진 찍어 분석 데모 (EXPO_PUBLIC_API_BASE_URL 을 iPhone에서 /health가 열리는 주소로 지정)",
     "실제 표준근로계약서 샘플로 데모 데이터/정답 JSON 교체",
     "결과 화면 UI·문구 다듬기, OCR 원문 보기(선택)",
     "발표자료 + 신청서 초안 (Part 1/2/3)",

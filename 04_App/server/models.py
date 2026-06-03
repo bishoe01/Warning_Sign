@@ -1,5 +1,5 @@
 """분석 결과 스키마 (앱 src/data/sampleAnalysis.ts 의 타입과 1:1 대응)."""
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -16,11 +16,28 @@ class Summary(BaseModel):
     deduction: LocalizedText
 
 
+class SourceBox(BaseModel):
+    pageIndex: int
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class SourceMatch(BaseModel):
+    pageIndex: int
+    quote: str
+    boxes: List[SourceBox]
+    confidence: Literal["high", "medium", "low"]
+    matchType: Literal["exact", "normalized", "fuzzy"]
+
+
 class CautionItem(BaseModel):
     level: CautionLevel
     title: LocalizedText
     originalText: str
     explanation: LocalizedText
+    source: Optional[SourceMatch] = None
 
 
 class AiAnalysis(BaseModel):

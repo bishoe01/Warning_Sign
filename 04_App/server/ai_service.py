@@ -1,5 +1,4 @@
-"""AI 분석. OpenAI Chat Completions(JSON 모드)로 OCR 텍스트를 구조화한다.
-키가 없거나 응답이 깨지면 샘플 결과로 폴백한다."""
+"""AI 분석. OpenAI Chat Completions(JSON 모드)로 OCR 텍스트를 구조화한다."""
 import json
 
 import config
@@ -117,6 +116,5 @@ def analyze(ocr_text: str, language: str = "ko") -> AnalysisResult:
         content = completion.choices[0].message.content or "{}"
         ai = AiAnalysis(**json.loads(content))  # 스키마 검증
         return AnalysisResult(ocrText=ocr_text, **ai.model_dump())
-    except Exception as exc:  # 깨진 JSON / 네트워크 / 키 오류 → 샘플 폴백
-        print(f"[ai_service] real AI failed ({type(exc).__name__}), fallback to sample")
-        return _sample_with_ocr(ocr_text)
+    except Exception as exc:
+        raise RuntimeError(f"AI analysis failed: {exc}") from exc
