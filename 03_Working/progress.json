@@ -1,10 +1,10 @@
 {
   "project": "AI 근로계약서 도우미 MVP",
-  "updatedAt": "2026-06-05",
+  "updatedAt": "2026-06-06",
   "deviceLabel": "bishoe01s-MacBook-Air-4.local",
   "branch": "main",
   "status": "building",
-  "currentFocus": "Phase 10 사진 출처 하이라이트 1차 구현 완료 후 실기기/실 OCR QA와 데모 제출물 준비",
+  "currentFocus": "계약서 유형(제조·건설·서비스 / 농축산·어업) 선택 UI/API/프롬프트 분기 구현 완료. 실기기 Expo Go에서 두 유형 서버 로그 QA와 Phase 10 사진 출처 하이라이트 실기기/실 OCR QA, 데모 제출물 준비",
   "currentBaseline": {
     "ideaDocument": "01_Idea/idea_.md",
     "targetUser": "한국어 근로계약서를 혼자 확인해야 하는 외국인 근로자",
@@ -14,11 +14,11 @@
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료. M7(다국어 확장+마이페이지) 구현 완료: 앱 전역 언어 설정, 16개 언어 UI 문구, localized 분석 결과 모델, 서버 language 파라미터/프롬프트 확장, 샘플 배너. 2026-06-02/03 버그픽스: 서버 .env를 config.py 기준 경로에서 읽게 하고, real OCR/AI 실패를 200 샘플로 덮지 않고 502로 반환하며, 앱도 업로드 실패를 로컬 더미 결과로 대체하지 않게 수정. iPhone 원본/HEIC/대용량 이미지로 인한 OCR 실패를 줄이기 위해 업로드 전 expo-image-manipulator로 최대폭 1600px JPEG(0.72) 정규화 적용. 앱 분석 요청 전 /health 사전 확인(6초)과 분석 업로드 타임아웃(65초)을 추가해 백엔드 미도달 시 무한 OCR 로딩처럼 보이지 않게 수정. 2026-06-03 M9: 프롬프트 품질 조율, originalText/golden OCR 검증, 동적 다국어 fallback 해결(on-demand localization API + result 화면 누락 감지 + session/history 병합 캐시) 완료. 2026-06-03 분석 로딩 UX 개선: 진행 바는 완료 전 3칸까지만 천천히 채우고, 실제 분석 완료 후 마지막 칸을 채운 뒤 결과 화면으로 이동한다. 2026-06-04 M6 삭제 UX 개선: 내역 목록 우측 상단 휴지통은 선택 삭제 모드 진입으로 변경했고, 항목 체크/전체 선택/선택 삭제/취소/완료를 추가했다. 2026-06-04/05 M8 사진 출처 하이라이트 구현: Google Vision OCR 줄 영역 보존, OCR 줄 ID(sourceRegionIds) 기반 근거 매칭, cautionItems[].source 반환, 결과 카드 '사진에서 확인', 원본 이미지 하이라이트 뷰어, 매칭 실패 안내, 새 기록 source 저장 경로를 연결했다. 이 개선은 AI 설명이 실제 계약서 사진 어디에서 나온 것인지 사용자가 직접 확인하게 하는 신뢰 UX로, 공모전 어필 포인트 문서에 정리했다. 2026-06-05 언어 선택 UX 개선: 가로 스크롤 언어 탭을 제거하고 설정 화면은 nativeName-only 2열 그리드, 결과 화면은 드롭다운형 모달 선택으로 변경했다. 실기기/실 OCR 사진에서 박스 위치 QA는 남음. 데모/제출물(M4) 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료. M7(다국어 확장+마이페이지) 구현 완료: 앱 전역 언어 설정, 16개 언어 UI 문구, localized 분석 결과 모델, 서버 language 파라미터/프롬프트 확장, 샘플 배너. 2026-06-02/03 버그픽스: 서버 .env를 config.py 기준 경로에서 읽게 하고, real OCR/AI 실패를 200 샘플로 덮지 않고 502로 반환하며, 앱도 업로드 실패를 로컬 더미 결과로 대체하지 않게 수정. iPhone 원본/HEIC/대용량 이미지로 인한 OCR 실패를 줄이기 위해 업로드 전 expo-image-manipulator로 최대폭 1600px JPEG(0.72) 정규화 적용. 앱 분석 요청 전 /health 사전 확인(6초)과 분석 업로드 타임아웃(65초)을 추가해 백엔드 미도달 시 무한 OCR 로딩처럼 보이지 않게 수정. 2026-06-03 M9: 프롬프트 품질 조율, originalText/golden OCR 검증, 동적 다국어 fallback 해결(on-demand localization API + result 화면 누락 감지 + session/history 병합 캐시) 완료. 2026-06-03 분석 로딩 UX 개선: 진행 바는 완료 전 3칸까지만 천천히 채우고, 실제 분석 완료 후 마지막 칸을 채운 뒤 결과 화면으로 이동한다. 2026-06-04 M6 삭제 UX 개선: 내역 목록 우측 상단 휴지통은 선택 삭제 모드 진입으로 변경했고, 항목 체크/전체 선택/선택 삭제/취소/완료를 추가했다. 2026-06-04/05 M8 사진 출처 하이라이트 구현: Google Vision OCR 줄 영역 보존, OCR 줄 ID(sourceRegionIds) 기반 근거 매칭, cautionItems[].source 반환, 결과 카드 '사진에서 확인', 원본 이미지 하이라이트 뷰어, 매칭 실패 안내, 새 기록 source 저장 경로를 연결했다. 이 개선은 AI 설명이 실제 계약서 사진 어디에서 나온 것인지 사용자가 직접 확인하게 하는 신뢰 UX로, 공모전 어필 포인트 문서에 정리했다. 2026-06-05 언어 선택 UX 개선: 가로 스크롤 언어 탭을 제거하고 설정 화면은 nativeName-only 2열 그리드, 결과 화면은 드롭다운형 모달 선택으로 변경했다. 2026-06-05/06 계약서 유형 분리 기획 및 1차 구현 완료: 표준근로계약서를 제조·건설·서비스 / 농축산·어업 2종으로 나누고, 네팔 PDF는 대표 양식 샘플로만 쓰며 설명 언어는 기존 16개를 유지한다. 모바일은 /select 검토 화면에서 contractType을 선택해 세션/API payload로 전달하고, 서버는 수신값을 정규화해 유형별 프롬프트 체크리스트와 mismatch 안내를 적용한다. 실기기/실 OCR 사진에서 contractType 로그 QA와 박스 위치 QA가 남음. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "handoff": {
-    "nextFirstAction": "iPhone Expo Go에서 실제 계약서 사진을 분석하고 `사진에서 확인` 하이라이트의 페이지·박스 위치·저장 재열람을 확인한다."
+    "nextFirstAction": "iPhone Expo Go에서 두 계약서 유형을 각각 선택해 서버 로그에 `contractType=manufacturing_construction_service` / `contractType=agriculture_livestock_fishery`가 찍히는지 확인하고, 이어 실제 계약서 사진으로 `사진에서 확인` 하이라이트를 QA한다."
   },
   "documents": {
     "agents": {
@@ -83,6 +83,14 @@
     },
     "languageSelectionUx": {
       "path": "03_Working/2026-06-05_언어선택_UX개선.md",
+      "status": "done"
+    },
+    "contractTypeI18nPromptPlan": {
+      "path": "03_Working/2026-06-05_계약서유형_다국어프롬프트_기획.md",
+      "status": "done"
+    },
+    "contractTypeImplementationPlan": {
+      "path": "03_Working/2026-06-06_계약서유형_구현계획.md",
       "status": "done"
     }
   },
@@ -391,6 +399,8 @@
     "실제 표준근로계약서 샘플 미확보 (데모 데이터를 검증된 정답으로 교체 필요)"
   ],
   "nextActions": [
+    "[계약서 유형 QA] 실기기 Expo Go에서 두 유형을 각각 선택해 서버 로그에 `contractType=manufacturing_construction_service` / `contractType=agriculture_livestock_fishery`가 찍히는지 확인하고, 기존 16개 언어 `language` 흐름과 분리되어 유지되는지 확인한다.",
+    "[계약서 유형 QA] `/select` 검토 화면의 계약서 종류 선택 UI가 분석 버튼을 밀어내지 않는지, 두 옵션 선택 상태가 즉시 바뀌는지 확인한다.",
     "[실기기 QA] 내역 목록 삭제 UX를 확인한다. 우측 상단 휴지통 → 선택 모드 진입, 항목 체크 토글, 전체 선택, 선택 삭제, 취소/완료 해제가 동작해야 한다. 상세 페이지 삭제 UX는 기존 흐름 그대로인지 확인한다.",
     "[다음 세션 첫 작업] 실기기 Expo Go에서 동적 다국어 fallback 해결과 분석 로딩 UX를 QA한다. 체크: 저장 결과에서 미생성 언어 선택 → /localize-analysis patch 수신 → session/history 병합 캐시 → 재진입 시 API 재호출 없이 표시. 로딩은 완료 전 3칸, 실제 완료 후 마지막 칸인지 확인.",
     "[실기기 QA] Phase 10 사진 출처 하이라이트를 실제 계약서 사진으로 확인한다. 체크: 주의 카드에 '사진에서 확인' 표시, 탭 시 올바른 페이지, 하이라이트 박스 위치, medium confidence 안내, 매칭 실패 시 '원문 위치를 정확히 찾기 어려워요', 저장 후 재열람 시 source 유지.",
