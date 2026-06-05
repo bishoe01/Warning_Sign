@@ -72,10 +72,31 @@ export async function get(id: string): Promise<HistoryRecord | null> {
   return all.find((r) => r.id === id) ?? null;
 }
 
+export async function updateResult(id: string, result: AnalysisResult): Promise<HistoryRecord | null> {
+  const all = await readAll();
+  const index = all.findIndex((r) => r.id === id);
+  if (index < 0) return null;
+  const nextRecord: HistoryRecord = { ...all[index], result, isSample: all[index].isSample ?? !!result.isSample };
+  const next = [...all];
+  next[index] = nextRecord;
+  await writeAll(next);
+  return nextRecord;
+}
+
 export async function remove(id: string): Promise<void> {
   const all = await readAll();
   await writeAll(all.filter((r) => r.id !== id));
   try { new Directory(Paths.document, ROOT, id).delete(); } catch { /* 없으면 무시 */ }
+}
+
+export async function removeMany(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const idSet = new Set(ids);
+  const all = await readAll();
+  await writeAll(all.filter((r) => !idSet.has(r.id)));
+  ids.forEach((id) => {
+    try { new Directory(Paths.document, ROOT, id).delete(); } catch { /* 없으면 무시 */ }
+  });
 }
 
 export async function clearAll(): Promise<void> {

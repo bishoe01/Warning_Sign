@@ -7,15 +7,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { analyzeContract } from '@/api/contractApi';
 import { colors, spacing } from '@/constants/theme';
 import * as historyStore from '@/data/historyStore';
+import {
+  COMPLETION_HOLD_MS,
+  LOADING_STEP_MS,
+  activeSegmentCount,
+  completedStepIndex,
+  preCompleteMinDisplayMs,
+} from '@/data/loadingProgress';
 import { session } from '@/data/session';
 import { useI18n } from '@/i18n/useI18n';
-
-const STEP_MS = 900;
 
 export default function LoadingScreen() {
   const router = useRouter();
   const { language, t } = useI18n();
   const [step, setStep] = useState(0);
+  const [complete, setComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pageCount = session.getImages().length;
@@ -43,17 +49,17 @@ export default function LoadingScreen() {
     let cancelled = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // 단계 메시지를 순차로 표시
-    for (let i = 1; i < STEPS.length; i += 1) {
+    // 완료 전에는 마지막 칸을 비워 두고, 서버 응답 후에만 마지막 단계로 넘어간다.
+    for (let i = 1; i < STEPS.length - 1; i += 1) {
       timers.push(
         setTimeout(() => {
           if (!cancelled) setStep(i);
-        }, i * STEP_MS),
+        }, i * LOADING_STEP_MS),
       );
     }
 
     const startedAt = Date.now();
-    const minDisplayMs = STEPS.length * STEP_MS;
+    const minDisplayMs = preCompleteMinDisplayMs(STEPS.length);
 
     void (async () => {
       const uris = session.getImages();
@@ -68,7 +74,12 @@ export default function LoadingScreen() {
         session.setResult(result, { isSample, error: null });
         void historyStore.save(result, uris, { isSample }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
         const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
-        timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, wait));
+        timers.push(setTimeout(() => {
+          if (cancelled) return;
+          setComplete(true);
+          setStep(completedStepIndex(STEPS.length));
+          timers.push(setTimeout(() => { if (!cancelled) router.replace('/result'); }, COMPLETION_HOLD_MS));
+        }, wait));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'request failed');
@@ -83,6 +94,7 @@ export default function LoadingScreen() {
 
   const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] });
+  const activeSegments = activeSegmentCount(step, STEPS.length, complete);
 
   if (error) {
     return (
@@ -127,7 +139,7 @@ export default function LoadingScreen() {
 
         <View style={styles.progress}>
           {STEPS.map((label, index) => (
-            <View key={label} style={[styles.segment, index <= step && styles.segmentActive]} />
+            <View key={label} style={[styles.segment, index < activeSegments && styles.segmentActive]} />
           ))}
         </View>
       </View>
