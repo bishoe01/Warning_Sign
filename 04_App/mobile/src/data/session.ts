@@ -14,6 +14,10 @@ export const session = {
     lastIsSample = meta.isSample ?? !!result.isSample;
     lastError = meta.error ?? null;
   },
+  replaceResult(result: AnalysisResult) {
+    lastResult = result;
+    lastIsSample = lastIsSample || !!result.isSample;
+  },
   getResult(): AnalysisResult { return lastResult; },
   getResultMeta() { return { isSample: lastIsSample, error: lastError }; },
 };

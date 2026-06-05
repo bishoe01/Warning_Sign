@@ -6,9 +6,10 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
-from ai_service import analyze
-from models import AnalysisResult
-from ocr_service import run_ocr
+from ai_service import analyze, localize_analysis
+from models import AnalysisResult, LocalizeAnalysisRequest, LocalizedAnalysisPatch
+from ocr_service import run_ocr_with_layout
+from source_matching import attach_sources_to_analysis
 
 app = FastAPI(title="AI 근로계약서 도우미 API")
 SUPPORTED_LANGUAGES = {"ko", "en", "ne", "tet", "ru", "mn", "my", "bn", "vi", "uz", "id", "zh", "km", "ky", "th", "lo"}
@@ -46,12 +47,15 @@ async def analyze_contract(
         language = "ko"
 
     texts = []
+    regions = []
     total_bytes = 0
     try:
-        for f in files:
+        for page_index, f in enumerate(files):
             data = await f.read()
             total_bytes += len(data)
-            texts.append(run_ocr(data))
+            ocr = run_ocr_with_layout(data, page_index=page_index)
+            texts.append(ocr.text)
+            regions.extend(ocr.regions)
     except RuntimeError as exc:
         print(
             f"[analyze:error] lang={language} pages={len(files)} bytes={total_bytes} "
@@ -61,7 +65,7 @@ async def analyze_contract(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     ocr_text = "\n\n".join(t for t in texts if t)  # 페이지 구분으로 합치기
     try:
-        result = analyze(ocr_text, language)
+        result = attach_sources_to_analysis(analyze(ocr_text, language), regions)
     except RuntimeError as exc:
         print(
             f"[analyze:error] lang={language} pages={len(files)} bytes={total_bytes} "
@@ -78,3 +82,23 @@ async def analyze_contract(
         f"isSample={result.isSample}"
     )
     return result
+
+
+@app.post("/localize-analysis", response_model=LocalizedAnalysisPatch)
+async def localize_existing_analysis(request: LocalizeAnalysisRequest):
+    target_language = request.targetLanguage
+    try:
+        patch = localize_analysis(request.result, target_language)
+    except RuntimeError as exc:
+        print(
+            f"[localize:error] lang={target_language} items={len(request.result.cautionItems)} "
+            f"ai={'real' if config.USE_REAL_AI else 'sample'} "
+            f"reason={type(exc).__name__} detail={_safe_error_detail(exc)}"
+        )
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    print(
+        f"[localize] lang={target_language} items={len(request.result.cautionItems)} "
+        f"ai={'real' if config.USE_REAL_AI else 'sample'}"
+    )
+    return patch

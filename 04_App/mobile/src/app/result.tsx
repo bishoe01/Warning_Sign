@@ -1,18 +1,29 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { localizeAnalysis } from '@/api/contractApi';
 import { CautionCard } from '@/components/CautionCard';
 import { LanguageTabs } from '@/components/LanguageTabs';
 import { SummaryCard } from '@/components/SummaryCard';
 import { colors, radius, spacing } from '@/constants/theme';
 import * as historyStore from '@/data/historyStore';
+import { analysisHasLanguage, mergeLocalizedAnalysisPatch } from '@/data/localizationMerge';
+import type { CautionItem } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
+import { containRect, sourceBoxToRect, type Size } from '@/data/sourceLayout';
+import { DEFAULT_LANGUAGE, type AppLanguage } from '@/i18n/languages';
 import { getLocalized } from '@/i18n/localized';
 import { useI18n } from '@/i18n/useI18n';
+
+type SourceViewer = {
+  uri: string;
+  item?: CautionItem;
+  pageIndex: number;
+};
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -20,9 +31,71 @@ export default function ResultScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const fromHistory = !!id;
   const [record, setRecord] = useState<historyStore.HistoryRecord | null>(null);
-  const [viewer, setViewer] = useState<string | null>(null);
+  const [sessionResult, setSessionResult] = useState(session.getResult());
+  const [viewer, setViewer] = useState<SourceViewer | null>(null);
+  const [viewerImageSize, setViewerImageSize] = useState<Size | null>(null);
+  const [viewerStageSize, setViewerStageSize] = useState<Size>({ width: 0, height: 0 });
+  const [localizingLanguage, setLocalizingLanguage] = useState<AppLanguage | null>(null);
+  const [localizationError, setLocalizationError] = useState<{ language: AppLanguage; message: string } | null>(null);
+  const localizingRef = useRef<AppLanguage | null>(null);
+  const failedLocalizationRef = useRef<AppLanguage | null>(null);
   const tr = t.result;
-  useEffect(() => { if (id) historyStore.get(id).then((r) => (r ? setRecord(r) : router.back())); }, [id]);
+  useEffect(() => { if (id) historyStore.get(id).then((r) => (r ? setRecord(r) : router.back())); }, [id, router]);
+
+  useEffect(() => {
+    if (!viewer) {
+      setViewerImageSize(null);
+      return;
+    }
+    let cancelled = false;
+    RNImage.getSize(
+      viewer.uri,
+      (width, height) => { if (!cancelled) setViewerImageSize({ width, height }); },
+      () => { if (!cancelled) setViewerImageSize(null); },
+    );
+    return () => { cancelled = true; };
+  }, [viewer]);
+
+  const data = fromHistory ? record?.result : sessionResult;
+  const languageReady = data ? analysisHasLanguage(data, language) : true;
+  const displayLanguage = languageReady ? language : DEFAULT_LANGUAGE;
+
+  useEffect(() => {
+    if (!data || languageReady || localizingRef.current === language || failedLocalizationRef.current === language) return;
+
+    let cancelled = false;
+    localizingRef.current = language;
+    setLocalizingLanguage(language);
+
+    void localizeAnalysis(data, language)
+      .then(async (patch) => {
+        if (cancelled) return;
+        const merged = mergeLocalizedAnalysisPatch(data, patch);
+        if (failedLocalizationRef.current === language) failedLocalizationRef.current = null;
+        setLocalizationError(null);
+        if (fromHistory && record) {
+          const updated = await historyStore.updateResult(record.id, merged);
+          if (!cancelled && updated) setRecord(updated);
+        } else {
+          session.replaceResult(merged);
+          setSessionResult(merged);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          failedLocalizationRef.current = language;
+          setLocalizationError({ language, message: err instanceof Error ? err.message : 'localization failed' });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          if (localizingRef.current === language) localizingRef.current = null;
+          setLocalizingLanguage(null);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [data, fromHistory, language, languageReady, record]);
 
   // 기록 로딩 중엔 직전 분석(session)이 한 프레임 보이는 깜빡임 방지 (모든 훅 선언 뒤에 위치)
   if (fromHistory && !record) {
@@ -40,10 +113,20 @@ export default function ResultScreen() {
     );
   }
 
-  const data = fromHistory ? record!.result : session.getResult();
   const imageUris = fromHistory ? historyStore.pageUris(record!) : session.getImages();
   const meta = fromHistory ? { isSample: !!record!.isSample, error: null } : session.getResultMeta();
-  const isSample = meta.isSample || !!data.isSample;
+  const isSample = meta.isSample || !!data!.isSample;
+  const isLocalizing = !languageReady && localizingLanguage === language;
+  const currentLocalizationError = localizationError?.language === language ? localizationError.message : null;
+  const openSourceViewer = (item: CautionItem) => {
+    const source = item.source;
+    if (!source || source.confidence === 'low') return;
+    const uri = imageUris[source.pageIndex];
+    if (!uri) return;
+    setViewer({ uri, item, pageIndex: source.pageIndex });
+  };
+  const renderedImageRect = viewerImageSize ? containRect(viewerStageSize, viewerImageSize) : null;
+  const viewerBoxes = viewer?.item?.source?.boxes.filter((box) => box.pageIndex === viewer.pageIndex) ?? [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -86,22 +169,40 @@ export default function ResultScreen() {
         )}
         <LanguageTabs value={language} onChange={setLanguage} />
 
+        {!languageReady && (
+          <View style={styles.localizationNote}>
+            {isLocalizing ? <ActivityIndicator color={colors.primary} size="small" /> : <Feather name="alert-circle" size={15} color="#B45309" />}
+            <Text style={styles.localizationText}>
+              {isLocalizing
+                ? t.loading.simplify
+                : `선택한 언어 설명을 불러오지 못해 한국어로 보여드려요. (${currentLocalizationError ?? 'localization failed'})`}
+            </Text>
+          </View>
+        )}
+
         <Text style={styles.sectionTitle}>{tr.summaryTitle}</Text>
-        <SummaryCard summary={data.summary} language={language} labels={tr} />
+        <SummaryCard summary={data!.summary} language={displayLanguage} labels={tr} />
 
         <View style={styles.cautionHead}>
           <Text style={styles.sectionTitle}>{tr.cautionTitle}</Text>
-          <Text style={styles.count}>{data.cautionItems.length}</Text>
+          <Text style={styles.count}>{data!.cautionItems.length}</Text>
         </View>
         <View style={styles.cautionList}>
-          {data.cautionItems.map((item, index) => (
-            <CautionCard key={index} item={item} language={language} labels={tr} />
+          {data!.cautionItems.map((item, index) => (
+            <CautionCard
+              key={index}
+              item={item}
+              language={displayLanguage}
+              labels={tr}
+              canShowSource={imageUris.length > 0}
+              onOpenSource={openSourceViewer}
+            />
           ))}
         </View>
 
         <View style={styles.notice}>
           <Text style={styles.noticeLabel}>{tr.noticeLabel}</Text>
-          <Text style={styles.noticeText}>{getLocalized(data.notice, language)}</Text>
+          <Text style={styles.noticeText}>{getLocalized(data!.notice, displayLanguage)}</Text>
         </View>
 
         {imageUris.length > 0 && (
@@ -109,7 +210,7 @@ export default function ResultScreen() {
             <Text style={styles.sectionTitle}>{tr.originalImages(imageUris.length)}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
               {imageUris.map((uri, i) => (
-                <Pressable key={uri + i} onPress={() => setViewer(uri)}>
+                <Pressable key={uri + i} onPress={() => setViewer({ uri, pageIndex: i })}>
                   <Image source={{ uri }} style={styles.originalThumb} contentFit="cover" />
                 </Pressable>
               ))}
@@ -119,9 +220,38 @@ export default function ResultScreen() {
       </ScrollView>
 
       <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
-        <Pressable style={styles.viewerBackdrop} onPress={() => setViewer(null)}>
-          {viewer && <Image source={{ uri: viewer }} style={styles.viewerImg} contentFit="contain" />}
-        </Pressable>
+        <View style={styles.viewerBackdrop}>
+          <View style={styles.viewerHeader}>
+            <Pressable onPress={() => setViewer(null)} hitSlop={10} style={styles.viewerClose}>
+              <Feather name="x" size={22} color="#fff" />
+            </Pressable>
+            <Text style={styles.viewerTitle}>{viewer?.item ? tr.sourceViewerTitle : tr.originalImages(imageUris.length)}</Text>
+            <Text style={styles.viewerPage}>{viewer ? `${viewer.pageIndex + 1}/${imageUris.length}` : ''}</Text>
+          </View>
+
+          <View
+            style={styles.viewerStage}
+            onLayout={(event) => setViewerStageSize(event.nativeEvent.layout)}
+          >
+            {viewer && <Image source={{ uri: viewer.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />}
+            {renderedImageRect && viewerBoxes.map((box, index) => {
+              const rect = sourceBoxToRect(box, renderedImageRect);
+              return <View key={`${box.pageIndex}-${index}`} style={[styles.sourceHighlight, rect]} />;
+            })}
+          </View>
+
+          {viewer?.item && (
+            <View style={styles.sourcePanel}>
+              <Text style={styles.sourcePanelTitle}>{getLocalized(viewer.item.title, displayLanguage)}</Text>
+              <Text style={styles.sourcePanelLabel}>{tr.sourceQuoteLabel}</Text>
+              <Text style={styles.sourcePanelQuote}>“{viewer.item.source?.quote ?? viewer.item.originalText}”</Text>
+              <Text style={styles.sourcePanelHint}>
+                {viewer.item.source?.confidence === 'medium' ? tr.sourceLowConfidence : tr.sourceUsedHint}
+              </Text>
+              <Text style={styles.sourcePanelExplanation}>{getLocalized(viewer.item.explanation, displayLanguage)}</Text>
+            </View>
+          )}
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -150,6 +280,9 @@ const styles = StyleSheet.create({
   savedNote: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primarySoft,
     borderRadius: radius.md, paddingVertical: 9, paddingHorizontal: spacing.md },
   savedNoteText: { flex: 1, fontSize: 12, color: colors.primary, fontWeight: '700' },
+  localizationNote: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface,
+    borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: spacing.md },
+  localizationText: { flex: 1, fontSize: 12, color: colors.textSecondary, fontWeight: '700', lineHeight: 17 },
   sampleNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFF7ED',
     borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: spacing.md },
   sampleTextWrap: { flex: 1, gap: 2 },
@@ -157,7 +290,24 @@ const styles = StyleSheet.create({
   sampleDesc: { fontSize: 12, color: '#92400E', fontWeight: '600', lineHeight: 17 },
   originalBlock: { marginTop: spacing.sm, gap: spacing.sm },
   originalThumb: { width: 92, height: 124, borderRadius: radius.md, backgroundColor: colors.bgElevated },
-  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  viewerImg: { width: '100%', height: '85%' },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.lg },
+  viewerHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.md },
+  viewerClose: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  viewerTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '800' },
+  viewerPage: { color: 'rgba(255,255,255,0.74)', fontSize: 13, fontWeight: '800' },
+  viewerStage: { flex: 1, width: '100%', overflow: 'hidden' },
+  sourceHighlight: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(49, 130, 246, 0.22)',
+    borderRadius: 4,
+  },
+  sourcePanel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.lg, gap: 6, marginTop: spacing.md },
+  sourcePanelTitle: { fontSize: 15, fontWeight: '900', color: colors.text },
+  sourcePanelLabel: { fontSize: 11, fontWeight: '800', color: colors.textTertiary, marginTop: 4 },
+  sourcePanelQuote: { fontSize: 13, color: colors.textSecondary, lineHeight: 20, fontWeight: '700' },
+  sourcePanelHint: { fontSize: 12, color: colors.primary, lineHeight: 18, fontWeight: '800' },
+  sourcePanelExplanation: { fontSize: 13, color: colors.text, lineHeight: 20, fontWeight: '500' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

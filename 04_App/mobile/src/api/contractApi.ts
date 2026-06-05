@@ -1,8 +1,10 @@
 import { API_BASE_URL } from '@/constants/config';
 import type { AnalysisResult, Language } from '@/data/sampleAnalysis';
+import type { LocalizedAnalysisPatch } from '@/data/localizationMerge';
 
 const HEALTH_TIMEOUT_MS = 6000;
 const ANALYZE_TIMEOUT_MS = 65000;
+const LOCALIZE_TIMEOUT_MS = 45000;
 
 async function fetchWithTimeout(input: RequestInfo, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
@@ -68,4 +70,32 @@ export async function analyzeContract(
     throw new Error(`server responded ${res.status}${detail}`);
   }
   return (await res.json()) as AnalysisResult;
+}
+
+export async function localizeAnalysis(
+  result: AnalysisResult,
+  targetLanguage: Language,
+): Promise<LocalizedAnalysisPatch> {
+  await assertBackendReachable();
+
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/localize-analysis`,
+    {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result, targetLanguage }),
+    },
+    LOCALIZE_TIMEOUT_MS,
+  );
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = typeof body.detail === 'string' ? `: ${body.detail}` : '';
+    } catch {
+      detail = '';
+    }
+    throw new Error(`server responded ${res.status}${detail}`);
+  }
+  return (await res.json()) as LocalizedAnalysisPatch;
 }

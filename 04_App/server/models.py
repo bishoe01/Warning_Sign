@@ -53,3 +53,20 @@ class AnalysisResult(BaseModel):
     cautionItems: List[CautionItem]
     notice: LocalizedText
     isSample: bool = False
+
+
+class CautionLocalizationPatch(BaseModel):
+    title: LocalizedText
+    explanation: LocalizedText
+
+
+class LocalizedAnalysisPatch(BaseModel):
+    targetLanguage: Language
+    summary: Summary
+    cautionItems: List[CautionLocalizationPatch]
+    notice: LocalizedText
+
+
+class LocalizeAnalysisRequest(BaseModel):
+    targetLanguage: Language
+    result: AnalysisResult

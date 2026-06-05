@@ -41,10 +41,19 @@ cp .env.example .env
 |---|---|---|
 | GET | `/health` | 상태 + 현재 모드(sample/real) |
 | POST | `/analyze-contract` | `files`(이미지 1장 이상) + `language`(ko/en/ne/tet/ru/mn/my/bn/vi/uz/id/zh/km/ky/th/lo) → 분석 JSON |
+| POST | `/localize-analysis` | 기존 분석 JSON + `targetLanguage` → target 언어 localized field patch |
 
 ```bash
 curl -X POST http://localhost:8000/analyze-contract \
   -F "files=@contract.jpg" -F "language=ko"
+```
+
+동적 다국어 보강:
+
+```bash
+curl -X POST http://localhost:8000/localize-analysis \
+  -H "Content-Type: application/json" \
+  -d '{"targetLanguage":"th","result":{...}}'
 ```
 
 ## 안전

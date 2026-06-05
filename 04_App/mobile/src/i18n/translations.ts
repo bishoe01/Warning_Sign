@@ -53,6 +53,12 @@ export type Translation = {
     original: string;
     noticeLabel: string;
     originalImages: (count: number) => string;
+    sourceAction: string;
+    sourceUnavailable: string;
+    sourceViewerTitle: string;
+    sourceQuoteLabel: string;
+    sourceUsedHint: string;
+    sourceLowConfidence: string;
     deleteTitle: string;
     deleteMessage: string;
     sampleTitle: string;
@@ -142,6 +148,12 @@ const en: Translation = {
     original: 'Original contract text',
     noticeLabel: 'Notice',
     originalImages: (count) => `Original contract images (${count})`,
+    sourceAction: 'Check in photo',
+    sourceUnavailable: 'Could not find the exact place in the photo',
+    sourceViewerTitle: 'Check in photo',
+    sourceQuoteLabel: 'OCR text',
+    sourceUsedHint: 'This part was used for the analysis.',
+    sourceLowConfidence: 'The OCR position may not be exact. Please compare it with the original text.',
     deleteTitle: 'Delete',
     deleteMessage: 'Delete this analysis record?',
     sampleTitle: 'Sample result',
@@ -303,6 +315,12 @@ function makeSimple(c: SimpleCopy): Translation {
       original: c.original,
       noticeLabel: c.noticeLabel,
       originalImages: (count) => `${c.originalImages} (${count})`,
+      sourceAction: 'Check in photo',
+      sourceUnavailable: 'Could not find the exact place in the photo',
+      sourceViewerTitle: 'Check in photo',
+      sourceQuoteLabel: 'OCR text',
+      sourceUsedHint: 'This part was used for the analysis.',
+      sourceLowConfidence: 'The OCR position may not be exact. Please compare it with the original text.',
       deleteTitle: c.deleteTitle,
       deleteMessage: c.deleteMessage,
       sampleTitle: c.sampleTitle,
@@ -1388,6 +1406,12 @@ export const translations: Record<AppLanguage, Translation> = {
       original: '계약서 원문',
       noticeLabel: '참고 안내',
       originalImages: (count) => `계약서 원본 ${count}장`,
+      sourceAction: '사진에서 확인',
+      sourceUnavailable: '원문 위치를 정확히 찾기 어려워요',
+      sourceViewerTitle: '사진에서 확인',
+      sourceQuoteLabel: 'OCR 원문',
+      sourceUsedHint: '이 부분을 근거로 분석했어요.',
+      sourceLowConfidence: 'OCR 위치가 정확하지 않을 수 있어 원문을 함께 확인해 주세요.',
       deleteTitle: '삭제',
       deleteMessage: '이 분석 기록을 지울까요?',
       sampleTitle: '샘플 결과',
