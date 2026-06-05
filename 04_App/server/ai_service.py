@@ -5,6 +5,7 @@ from typing import Optional, Union
 import config
 from models import AiAnalysis, AnalysisResult, LocalizedAnalysisPatch
 from sample import SAMPLE_RESULT
+from source_matching import OcrRegion
 
 SYSTEM_PROMPT = """너는 외국인 근로자를 돕는 근로계약서 설명 도우미다.
 
@@ -49,10 +50,39 @@ def _target_localized_shape(language: str) -> str:
     return "{" + f'"{language}": ""' + "}"
 
 
-def _build_user_prompt(ocr_text: str, language: str) -> str:
+def _ocr_region_prompt(source_regions: Optional[list[OcrRegion]]) -> str:
+    if not source_regions:
+        return ""
+
+    lines = []
+    for region in source_regions:
+        text = region.text.strip()
+        if text:
+            lines.append(f"[{region.id}] {text}")
+    if not lines:
+        return ""
+
+    return "\n".join(lines)
+
+
+def _build_user_prompt(ocr_text: str, language: str, source_regions: Optional[list[OcrRegion]] = None) -> str:
     response_languages = _response_languages(language)
     language_desc = ", ".join(f"{lang}({LANGUAGE_NAMES.get(lang, lang)})" for lang in response_languages)
     localized = _localized_shape(response_languages)
+    source_region_text = _ocr_region_prompt(source_regions)
+    source_region_instruction = ""
+    if source_region_text:
+        source_region_instruction = f"""
+
+[OCR 줄 ID 목록]
+아래 줄 ID는 사진 속 OCR 위치와 연결된다. 주의 조항을 만들 때 반드시 근거가 된 줄 ID를 sourceRegionIds 에 넣는다.
+- sourceRegionIds 는 아래 목록에 있는 ID만 사용한다. 예: ["p1-r4"]
+- 여러 줄을 근거로 쓰면 가까운 줄 ID를 1~3개 넣는다.
+- originalText 는 선택한 줄의 한국어 OCR 원문 일부를 그대로 복사한다. 줄 ID 자체는 originalText 에 넣지 않는다.
+- OCR 줄에 값이 빈칸처럼 보이면 그 빈칸 주변 줄 ID를 sourceRegionIds 에 넣는다.
+
+{source_region_text}
+"""
     return f"""아래 OCR 텍스트는 한국에서 사용하는 한국어 근로계약서에서 추출한 내용이다.
 
 [출력 JSON 형식]
@@ -60,7 +90,7 @@ def _build_user_prompt(ocr_text: str, language: str) -> str:
 - summary 에 임금(salary), 근무시간(workHours), 휴일(holiday), 계약기간(contractPeriod), 공제(deduction)를 추출한다.
 - summary 의 각 값은 localized object 로 작성한다. 응답 언어는 {language_desc} 이다.
 - 확인이 필요한 조항을 cautionItems 배열로 만든다.
-- cautionItems 각 항목 형식: level(check|review|info), title(localized object), originalText(한국어 원문), explanation(localized object).
+- cautionItems 각 항목 형식: level(check|review|info), title(localized object), originalText(한국어 원문), sourceRegionIds(OCR 줄 ID 배열), explanation(localized object).
 - notice 에 "법률 자문이 아니라 참고용 안내" 라는 의미와 OCR/원문 확인 필요성을 localized object 로 넣는다.
 
 [설명 언어와 법률 기준 분리]
@@ -108,6 +138,7 @@ def _build_user_prompt(ocr_text: str, language: str) -> str:
 - 원문이 깨졌으면 OCR 에 보이는 형태 그대로 인용하고 explanation 에 OCR 확인 필요를 말한다.
 - 원문이 없거나 빈 양식의 필수 항목 미기재를 지적할 때는 빈칸/라벨 주변 문장을 OCR 에 보이는 그대로 인용한다.
 - originalText 는 나중에 OCR bounding box 와 매칭할 기준이므로 반드시 OCR 텍스트 안에서 찾을 수 있어야 한다.
+- sourceRegionIds 는 사진 하이라이트의 1차 근거다. 주의 항목마다 가능한 한 반드시 채운다.
 
 [다국어 설명 규칙]
 - ko, en, 요청 언어의 title/explanation/notice 를 모두 채운다.
@@ -116,7 +147,9 @@ def _build_user_prompt(ocr_text: str, language: str) -> str:
 - explanation 은 쉬운 문장으로 쓴다. "위험/불법/무효/확정" 같은 단정 표현은 금지하고, "확인이 필요합니다 / 상담을 권장합니다" 톤으로 쓴다.
 
 JSON 형식:
-{{"summary": {{"salary": {localized}, "workHours": {localized}, "holiday": {localized}, "contractPeriod": {localized}, "deduction": {localized}}}, "cautionItems": [{{"level": "check", "title": {localized}, "originalText": "", "explanation": {localized}}}], "notice": {localized}}}
+{{"summary": {{"salary": {localized}, "workHours": {localized}, "holiday": {localized}, "contractPeriod": {localized}, "deduction": {localized}}}, "cautionItems": [{{"level": "check", "title": {localized}, "originalText": "", "sourceRegionIds": [], "explanation": {localized}}}], "notice": {localized}}}
+
+{source_region_instruction}
 
 OCR 텍스트:
 {ocr_text}
@@ -194,6 +227,7 @@ def _validate_ai_analysis_against_ocr(
     ai: AiAnalysis,
     ocr_text: str,
     required_languages: Optional[list[str]] = None,
+    require_grounded_quotes: bool = True,
 ) -> None:
     """Validate AI output needed for source matching and language display."""
     languages = required_languages or []
@@ -207,7 +241,7 @@ def _validate_ai_analysis_against_ocr(
         quote = item.originalText.strip()
         if not quote:
             raise ValueError(f"cautionItems[{index}].originalText is empty")
-        if not _quote_exists_in_ocr(quote, ocr_text):
+        if require_grounded_quotes and not _quote_exists_in_ocr(quote, ocr_text):
             raise ValueError(f"cautionItems[{index}].originalText is not present in OCR text: {quote}")
         if languages:
             _require_localized_keys(f"cautionItems[{index}].title", item.title, languages)
@@ -268,7 +302,7 @@ def _existing_localization_patch(
     )
 
 
-def analyze(ocr_text: str, language: str = "ko") -> AnalysisResult:
+def analyze(ocr_text: str, language: str = "ko", source_regions: Optional[list[OcrRegion]] = None) -> AnalysisResult:
     """OCR 텍스트를 분석 결과 JSON 으로 변환한다."""
     if not config.USE_REAL_AI:
         return _sample_with_ocr(ocr_text)
@@ -283,12 +317,20 @@ def analyze(ocr_text: str, language: str = "ko") -> AnalysisResult:
             temperature=0.2,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_prompt(ocr_text, language)},
+                {"role": "user", "content": _build_user_prompt(ocr_text, language, source_regions)},
             ],
         )
         content = completion.choices[0].message.content or "{}"
         ai = AiAnalysis(**json.loads(content))  # 스키마 검증
-        _validate_ai_analysis_against_ocr(ai, ocr_text, _response_languages(language))
+        # Do not fail the whole analysis just because a quote cannot be grounded.
+        # Source matching will omit `source`, and the app shows an honest
+        # "원문 위치를 정확히 찾기 어려워요" state for that item.
+        _validate_ai_analysis_against_ocr(
+            ai,
+            ocr_text,
+            _response_languages(language),
+            require_grounded_quotes=False,
+        )
         return AnalysisResult(ocrText=ocr_text, **ai.model_dump())
     except Exception as exc:
         raise RuntimeError(f"AI analysis failed: {exc}") from exc

@@ -13,6 +13,7 @@ class OcrRegion:
     y: float
     width: float
     height: float
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,33 @@ def _source_match(quote: str, region: OcrRegion, confidence: str, match_type: st
     )
 
 
+def _source_match_from_regions(quote: str, regions: list[OcrRegion], confidence: str, match_type: str) -> Optional[SourceMatch]:
+    if not regions:
+        return None
+    return SourceMatch(
+        pageIndex=regions[0].page_index,
+        quote=quote,
+        boxes=[_source_box(region) for region in regions],
+        confidence=confidence,
+        matchType=match_type,
+    )
+
+
+def match_source_region_ids(source_region_ids: Iterable[str], regions: Iterable[OcrRegion]) -> Optional[SourceMatch]:
+    """Return a source match from explicit OCR region IDs emitted by AI."""
+    requested_ids = [region_id.strip() for region_id in source_region_ids if region_id.strip()]
+    if not requested_ids:
+        return None
+
+    by_id = {region.id: region for region in regions if region.id}
+    matched = [by_id[region_id] for region_id in requested_ids if region_id in by_id]
+    if not matched:
+        return None
+
+    quote = "\n".join(region.text for region in matched if region.text.strip()).strip()
+    return _source_match_from_regions(quote=quote, regions=matched, confidence="high", match_type="regionId")
+
+
 def match_source(quote: str, regions: Iterable[OcrRegion]) -> Optional[SourceMatch]:
     """Return a grounded source match, or None when a quote cannot be located."""
     cleaned_quote = quote.strip()
@@ -81,7 +109,7 @@ def attach_sources_to_analysis(analysis: AnalysisT, regions: Iterable[OcrRegion]
     for item in result.cautionItems:
         if item.source:
             continue
-        item.source = match_source(item.originalText, region_list)
+        item.source = match_source_region_ids(item.sourceRegionIds, region_list) or match_source(item.originalText, region_list)
     return result
 
 
@@ -109,6 +137,7 @@ def sample_regions_from_text(text: str, page_index: int = 0) -> list[OcrRegion]:
                 y=y,
                 width=width,
                 height=line_height * 0.72,
+                id=f"p{page_index + 1}-r{index + 1}",
             )
         )
     return regions

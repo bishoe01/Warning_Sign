@@ -29,7 +29,7 @@ class SourceMatch(BaseModel):
     quote: str
     boxes: List[SourceBox]
     confidence: Literal["high", "medium", "low"]
-    matchType: Literal["exact", "normalized", "fuzzy"]
+    matchType: Literal["regionId", "exact", "normalized", "fuzzy"]
 
 
 class CautionItem(BaseModel):
@@ -37,6 +37,7 @@ class CautionItem(BaseModel):
     title: LocalizedText
     originalText: str
     explanation: LocalizedText
+    sourceRegionIds: List[str] = []
     source: Optional[SourceMatch] = None
 
 

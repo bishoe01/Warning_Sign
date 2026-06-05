@@ -69,7 +69,22 @@ def _word_text_and_break(word: dict) -> tuple[str, str]:
     return text, break_type
 
 
-def _regions_from_full_text_annotation(annotation: dict, fallback_text: str) -> list[OcrRegion]:
+def _with_region_ids(regions: list[OcrRegion], page_index: int) -> list[OcrRegion]:
+    return [
+        OcrRegion(
+            page_index=region.page_index,
+            text=region.text,
+            x=region.x,
+            y=region.y,
+            width=region.width,
+            height=region.height,
+            id=f"p{page_index + 1}-r{index + 1}",
+        )
+        for index, region in enumerate(regions)
+    ]
+
+
+def _regions_from_full_text_annotation(annotation: dict, fallback_text: str, upload_page_index: int) -> list[OcrRegion]:
     regions: list[OcrRegion] = []
     pages = annotation.get("pages") or []
     for page_index, page in enumerate(pages):
@@ -83,7 +98,7 @@ def _regions_from_full_text_annotation(annotation: dict, fallback_text: str) -> 
             line_text = " ".join(word for word in current_words if word).strip()
             if line_text and current_boxes:
                 x, y, width, height = _union_box(current_boxes)
-                regions.append(OcrRegion(page_index=page_index, text=line_text, x=x, y=y, width=width, height=height))
+                regions.append(OcrRegion(page_index=upload_page_index, text=line_text, x=x, y=y, width=width, height=height))
             current_words = []
             current_boxes = []
 
@@ -107,8 +122,8 @@ def _regions_from_full_text_annotation(annotation: dict, fallback_text: str) -> 
         flush_line()
 
     if regions:
-        return regions
-    return sample_regions_from_text(fallback_text)
+        return _with_region_ids(regions, upload_page_index)
+    return sample_regions_from_text(fallback_text, page_index=upload_page_index)
 
 
 def run_ocr_with_layout(image_bytes: bytes, page_index: int = 0) -> OcrResult:
@@ -142,10 +157,7 @@ def run_ocr_with_layout(image_bytes: bytes, page_index: int = 0) -> OcrResult:
             raise RuntimeError(message)
         annotation = response.get("fullTextAnnotation", {})
         text = annotation.get("text", "").strip()
-        regions = [
-            OcrRegion(page_index=page_index, text=region.text, x=region.x, y=region.y, width=region.width, height=region.height)
-            for region in _regions_from_full_text_annotation(annotation, text)
-        ]
+        regions = _regions_from_full_text_annotation(annotation, text, page_index)
     except Exception as exc:
         raise RuntimeError(f"OCR failed: {exc}") from exc
 

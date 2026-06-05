@@ -1,7 +1,7 @@
 import unittest
 
 from models import AiAnalysis
-from source_matching import OcrRegion, attach_sources_to_analysis, match_source
+from source_matching import OcrRegion, attach_sources_to_analysis, match_source, match_source_region_ids
 
 
 def make_analysis(original_text: str) -> AiAnalysis:
@@ -42,6 +42,19 @@ class SourceMatchingTest(unittest.TestCase):
         self.assertEqual(match.pageIndex, 0)
         self.assertEqual(match.boxes[0].x, 0.1)
 
+    def test_match_source_region_ids_uses_explicit_ocr_line_ids(self):
+        regions = [
+            OcrRegion(page_index=0, text="소정근로시간: 시 분 ~ 시 분", x=0.1, y=0.2, width=0.7, height=0.04, id="p1-r4"),
+            OcrRegion(page_index=0, text="임금: 월 통상임금( )원", x=0.1, y=0.3, width=0.6, height=0.04, id="p1-r5"),
+        ]
+
+        match = match_source_region_ids(["p1-r4"], regions)
+
+        self.assertIsNotNone(match)
+        self.assertEqual(match.matchType, "regionId")
+        self.assertEqual(match.quote, "소정근로시간: 시 분 ~ 시 분")
+        self.assertEqual(match.boxes[0].y, 0.2)
+
     def test_match_source_accepts_spacing_difference_as_medium_confidence(self):
         regions = [
             OcrRegion(page_index=1, text="월 통상임금 ( 100 ) 원", x=0.12, y=0.31, width=0.48, height=0.05),
@@ -70,6 +83,18 @@ class SourceMatchingTest(unittest.TestCase):
         result = attach_sources_to_analysis(analysis, regions)
 
         self.assertIsNone(result.cautionItems[0].source)
+
+    def test_attach_sources_to_analysis_prefers_source_region_ids_over_quote_matching(self):
+        regions = [
+            OcrRegion(page_index=0, text="소정근로시간: 시 분 ~ 시 분", x=0.1, y=0.2, width=0.7, height=0.04, id="p1-r4"),
+        ]
+        analysis = make_analysis("시 분 ~ 시 분")
+        analysis.cautionItems[0].sourceRegionIds = ["p1-r4"]
+
+        result = attach_sources_to_analysis(analysis, regions)
+
+        self.assertIsNotNone(result.cautionItems[0].source)
+        self.assertEqual(result.cautionItems[0].source.matchType, "regionId")
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ export type SourceMatch = {
   quote: string;
   boxes: SourceBox[];
   confidence: 'high' | 'medium' | 'low';
-  matchType: 'exact' | 'normalized' | 'fuzzy';
+  matchType: 'regionId' | 'exact' | 'normalized' | 'fuzzy';
 };
 
 export type CautionItem = {
@@ -36,6 +36,7 @@ export type CautionItem = {
   title: LocalizedText;
   originalText: string;
   explanation: LocalizedText;
+  sourceRegionIds?: string[];
   source?: SourceMatch;
 };
 

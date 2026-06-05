@@ -8,6 +8,7 @@ from ai_service import (
     _build_user_prompt,
 )
 from models import AiAnalysis, LocalizedAnalysisPatch
+from source_matching import OcrRegion
 
 
 GOLDEN_OCR_DIR = Path(__file__).parent / "golden_ocr"
@@ -50,12 +51,33 @@ class AiServiceValidationTest(unittest.TestCase):
         self.assertIn("한국에서 사용하는 한국어 근로계약서", prompt)
         self.assertIn("다른 국가의 노동법", prompt)
 
+    def test_prompt_includes_ocr_region_ids_for_source_grounding(self):
+        prompt = _build_user_prompt(
+            "소정근로시간: 시 분 ~ 시 분",
+            "ko",
+            [OcrRegion(page_index=0, text="소정근로시간: 시 분 ~ 시 분", x=0.1, y=0.2, width=0.7, height=0.04, id="p1-r4")],
+        )
+
+        self.assertIn("[p1-r4] 소정근로시간: 시 분 ~ 시 분", prompt)
+        self.assertIn("sourceRegionIds", prompt)
+        self.assertIn("사진 하이라이트", prompt)
+
     def test_original_text_must_be_present_in_ocr_text(self):
         ocr_text = (GOLDEN_OCR_DIR / "abnormal_salary.txt").read_text(encoding="utf-8")
         analysis = make_analysis("임금이 너무 낮습니다")
 
         with self.assertRaisesRegex(ValueError, "originalText"):
             _validate_ai_analysis_against_ocr(analysis, ocr_text)
+
+    def test_original_text_grounding_can_be_soft_for_live_analysis(self):
+        ocr_text = (GOLDEN_OCR_DIR / "abnormal_salary.txt").read_text(encoding="utf-8")
+        analysis = make_analysis("시 분 ~ 시 분")
+
+        _validate_ai_analysis_against_ocr(
+            analysis,
+            ocr_text,
+            require_grounded_quotes=False,
+        )
 
     def test_original_text_accepts_exact_ocr_quote(self):
         ocr_text = (GOLDEN_OCR_DIR / "abnormal_salary.txt").read_text(encoding="utf-8")

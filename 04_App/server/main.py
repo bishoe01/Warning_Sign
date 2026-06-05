@@ -65,7 +65,7 @@ async def analyze_contract(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     ocr_text = "\n\n".join(t for t in texts if t)  # 페이지 구분으로 합치기
     try:
-        result = attach_sources_to_analysis(analyze(ocr_text, language), regions)
+        result = attach_sources_to_analysis(analyze(ocr_text, language, regions), regions)
     except RuntimeError as exc:
         print(
             f"[analyze:error] lang={language} pages={len(files)} bytes={total_bytes} "
@@ -79,7 +79,8 @@ async def analyze_contract(
         f"[analyze] lang={language} pages={len(files)} bytes={total_bytes} "
         f"ocr={'real' if config.USE_REAL_OCR else 'sample'} "
         f"ai={'real' if config.USE_REAL_AI else 'sample'} "
-        f"isSample={result.isSample}"
+        f"isSample={result.isSample} "
+        f"sources={sum(1 for item in result.cautionItems if item.source)}/{len(result.cautionItems)}"
     )
     return result
 

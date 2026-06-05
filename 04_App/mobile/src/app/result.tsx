@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { localizeAnalysis } from '@/api/contractApi';
 import { CautionCard } from '@/components/CautionCard';
@@ -27,6 +27,7 @@ type SourceViewer = {
 
 export default function ResultScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { language, setLanguage, t } = useI18n();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const fromHistory = !!id;
@@ -220,7 +221,7 @@ export default function ResultScreen() {
       </ScrollView>
 
       <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
-        <View style={styles.viewerBackdrop}>
+        <View style={[styles.viewerBackdrop, { paddingTop: insets.top + spacing.sm, paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
           <View style={styles.viewerHeader}>
             <Pressable onPress={() => setViewer(null)} hitSlop={10} style={styles.viewerClose}>
               <Feather name="x" size={22} color="#fff" />
@@ -229,16 +230,17 @@ export default function ResultScreen() {
             <Text style={styles.viewerPage}>{viewer ? `${viewer.pageIndex + 1}/${imageUris.length}` : ''}</Text>
           </View>
 
-          <View
+          <Pressable
             style={styles.viewerStage}
             onLayout={(event) => setViewerStageSize(event.nativeEvent.layout)}
+            onPress={() => setViewer(null)}
           >
             {viewer && <Image source={{ uri: viewer.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />}
             {renderedImageRect && viewerBoxes.map((box, index) => {
               const rect = sourceBoxToRect(box, renderedImageRect);
               return <View key={`${box.pageIndex}-${index}`} style={[styles.sourceHighlight, rect]} />;
             })}
-          </View>
+          </Pressable>
 
           {viewer?.item && (
             <View style={styles.sourcePanel}>
@@ -290,9 +292,9 @@ const styles = StyleSheet.create({
   sampleDesc: { fontSize: 12, color: '#92400E', fontWeight: '600', lineHeight: 17 },
   originalBlock: { marginTop: spacing.sm, gap: spacing.sm },
   originalThumb: { width: 92, height: 124, borderRadius: radius.md, backgroundColor: colors.bgElevated },
-  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.lg },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', paddingHorizontal: spacing.md },
   viewerHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.md },
-  viewerClose: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  viewerClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   viewerTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '800' },
   viewerPage: { color: 'rgba(255,255,255,0.74)', fontSize: 13, fontWeight: '800' },
   viewerStage: { flex: 1, width: '100%', overflow: 'hidden' },
