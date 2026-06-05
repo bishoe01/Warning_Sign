@@ -1,0 +1,122 @@
+import unittest
+from pathlib import Path
+
+from ai_service import (
+    _build_localization_user_prompt,
+    _validate_ai_analysis_against_ocr,
+    _validate_localization_patch,
+    _build_user_prompt,
+)
+from models import AiAnalysis, LocalizedAnalysisPatch
+
+
+GOLDEN_OCR_DIR = Path(__file__).parent / "golden_ocr"
+
+
+def make_analysis(original_text: str) -> AiAnalysis:
+    return AiAnalysis(
+        summary={
+            "salary": {"ko": "월 통상임금 100원", "en": "Monthly ordinary wage: 100 KRW", "vi": "Lương thông thường hằng tháng: 100 won"},
+            "workHours": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
+            "holiday": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
+            "contractPeriod": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
+            "deduction": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
+        },
+        cautionItems=[
+            {
+                "level": "check",
+                "title": {"ko": "임금 비정상 기재", "en": "Unusual wage entry", "vi": "Mục lương bất thường"},
+                "originalText": original_text,
+                "explanation": {
+                    "ko": "임금이 매우 낮아 보이므로 서명 전에 실제 금액을 확인해 보세요.",
+                    "en": "The wage looks very low, so check the actual amount before signing.",
+                    "vi": "Mức lương có vẻ rất thấp, hãy kiểm tra số tiền thực tế trước khi ký.",
+                },
+            }
+        ],
+        notice={
+            "ko": "법률 자문이 아니라 참고용 안내입니다.",
+            "en": "This is guidance, not legal advice.",
+            "vi": "Đây là hướng dẫn tham khảo, không phải tư vấn pháp lý.",
+        },
+    )
+
+
+class AiServiceValidationTest(unittest.TestCase):
+    def test_prompt_separates_explanation_language_from_korean_contract_standard(self):
+        prompt = _build_user_prompt("월 통상임금(100)원", "vi")
+
+        self.assertIn("선택 언어는 설명 언어", prompt)
+        self.assertIn("한국에서 사용하는 한국어 근로계약서", prompt)
+        self.assertIn("다른 국가의 노동법", prompt)
+
+    def test_original_text_must_be_present_in_ocr_text(self):
+        ocr_text = (GOLDEN_OCR_DIR / "abnormal_salary.txt").read_text(encoding="utf-8")
+        analysis = make_analysis("임금이 너무 낮습니다")
+
+        with self.assertRaisesRegex(ValueError, "originalText"):
+            _validate_ai_analysis_against_ocr(analysis, ocr_text)
+
+    def test_original_text_accepts_exact_ocr_quote(self):
+        ocr_text = (GOLDEN_OCR_DIR / "abnormal_salary.txt").read_text(encoding="utf-8")
+        analysis = make_analysis("월 통상임금(100)원")
+
+        _validate_ai_analysis_against_ocr(analysis, ocr_text)
+
+    def test_localization_prompt_requests_target_language_only(self):
+        analysis = make_analysis("월 통상임금(100)원")
+        prompt = _build_localization_user_prompt(analysis, "th")
+
+        self.assertIn("targetLanguage: th", prompt)
+        self.assertIn("target language 필드만", prompt)
+        self.assertIn('"th": ""', prompt)
+        self.assertNotIn('"ko": ""', prompt)
+
+    def test_localization_patch_requires_target_key_and_same_item_count(self):
+        source = make_analysis("월 통상임금(100)원")
+        patch = LocalizedAnalysisPatch(
+            targetLanguage="th",
+            summary={
+                "salary": {"th": "ค่าจ้างปกติรายเดือน 100 วอน"},
+                "workHours": {"th": "ไม่ได้ระบุ"},
+                "holiday": {"th": "ไม่ได้ระบุ"},
+                "contractPeriod": {"th": "ไม่ได้ระบุ"},
+                "deduction": {"th": "ไม่ได้ระบุ"},
+            },
+            cautionItems=[
+                {
+                    "title": {"th": "ค่าจ้างผิดปกติ"},
+                    "explanation": {"th": "ค่าจ้างดูต่ำมาก โปรดตรวจสอบก่อนลงนาม"},
+                }
+            ],
+            notice={"th": "เป็นคำแนะนำอ้างอิง ไม่ใช่คำปรึกษาทางกฎหมาย"},
+        )
+
+        _validate_localization_patch(patch, "th", len(source.cautionItems))
+
+    def test_localization_patch_rejects_missing_target_key(self):
+        source = make_analysis("월 통상임금(100)원")
+        patch = LocalizedAnalysisPatch(
+            targetLanguage="th",
+            summary={
+                "salary": {"en": "Monthly ordinary wage: 100 KRW"},
+                "workHours": {"th": "ไม่ได้ระบุ"},
+                "holiday": {"th": "ไม่ได้ระบุ"},
+                "contractPeriod": {"th": "ไม่ได้ระบุ"},
+                "deduction": {"th": "ไม่ได้ระบุ"},
+            },
+            cautionItems=[
+                {
+                    "title": {"th": "ค่าจ้างผิดปกติ"},
+                    "explanation": {"th": "ค่าจ้างดูต่ำมาก โปรดตรวจสอบก่อนลงนาม"},
+                }
+            ],
+            notice={"th": "เป็นคำแนะนำอ้างอิง ไม่ใช่คำปรึกษาทางกฎหมาย"},
+        )
+
+        with self.assertRaisesRegex(ValueError, "missing localized keys"):
+            _validate_localization_patch(patch, "th", len(source.cautionItems))
+
+
+if __name__ == "__main__":
+    unittest.main()
