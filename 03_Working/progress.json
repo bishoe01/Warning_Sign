@@ -14,7 +14,7 @@
     "ai": "OpenAI Chat Completions (JSON 모드, gpt-4o-mini, 검증됨)",
     "storage": "No DB in MVP",
     "codeRoot": "04_App/ (mobile 앱 + server 백엔드)",
-    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료. M7(다국어 확장+마이페이지) 구현 완료: 앱 전역 언어 설정, 16개 언어 UI 문구, localized 분석 결과 모델, 서버 language 파라미터/프롬프트 확장, 샘플 배너. 2026-06-02/03 버그픽스: 서버 .env를 config.py 기준 경로에서 읽게 하고, real OCR/AI 실패를 200 샘플로 덮지 않고 502로 반환하며, 앱도 업로드 실패를 로컬 더미 결과로 대체하지 않게 수정. iPhone 원본/HEIC/대용량 이미지로 인한 OCR 실패를 줄이기 위해 업로드 전 expo-image-manipulator로 최대폭 1600px JPEG(0.72) 정규화 적용. 앱 분석 요청 전 /health 사전 확인(6초)과 분석 업로드 타임아웃(65초)을 추가해 백엔드 미도달 시 무한 OCR 로딩처럼 보이지 않게 수정. 2026-06-03 M9: 프롬프트 품질 조율, originalText/golden OCR 검증, 동적 다국어 fallback 해결(on-demand localization API + result 화면 누락 감지 + session/history 병합 캐시) 완료. 2026-06-03 분석 로딩 UX 개선: 진행 바는 완료 전 3칸까지만 천천히 채우고, 실제 분석 완료 후 마지막 칸을 채운 뒤 결과 화면으로 이동한다. 2026-06-04 M6 삭제 UX 개선: 내역 목록 우측 상단 휴지통은 선택 삭제 모드 진입으로 변경했고, 항목 체크/전체 선택/선택 삭제/취소/완료를 추가했다. 2026-06-04 M8 사진 출처 하이라이트 1차 구현: Google Vision OCR 줄 영역 보존, originalText↔OCR 영역 exact/normalized 매칭, cautionItems[].source 반환, 결과 카드 '사진에서 확인', 원본 이미지 하이라이트 뷰어, 매칭 실패 안내, 새 기록 source 저장 경로를 연결했다. 실기기/실 OCR 사진에서 박스 위치 QA는 남음. 데모/제출물(M4) 남음",
+    "currentSlice": "M1~M3 완료(서버 OCR+AI end-to-end). M5 UI 리디자인+인앱 카메라 완료. M6(저장·재열람+멀티페이지) 구현 완료. M7(다국어 확장+마이페이지) 구현 완료: 앱 전역 언어 설정, 16개 언어 UI 문구, localized 분석 결과 모델, 서버 language 파라미터/프롬프트 확장, 샘플 배너. 2026-06-02/03 버그픽스: 서버 .env를 config.py 기준 경로에서 읽게 하고, real OCR/AI 실패를 200 샘플로 덮지 않고 502로 반환하며, 앱도 업로드 실패를 로컬 더미 결과로 대체하지 않게 수정. iPhone 원본/HEIC/대용량 이미지로 인한 OCR 실패를 줄이기 위해 업로드 전 expo-image-manipulator로 최대폭 1600px JPEG(0.72) 정규화 적용. 앱 분석 요청 전 /health 사전 확인(6초)과 분석 업로드 타임아웃(65초)을 추가해 백엔드 미도달 시 무한 OCR 로딩처럼 보이지 않게 수정. 2026-06-03 M9: 프롬프트 품질 조율, originalText/golden OCR 검증, 동적 다국어 fallback 해결(on-demand localization API + result 화면 누락 감지 + session/history 병합 캐시) 완료. 2026-06-03 분석 로딩 UX 개선: 진행 바는 완료 전 3칸까지만 천천히 채우고, 실제 분석 완료 후 마지막 칸을 채운 뒤 결과 화면으로 이동한다. 2026-06-04 M6 삭제 UX 개선: 내역 목록 우측 상단 휴지통은 선택 삭제 모드 진입으로 변경했고, 항목 체크/전체 선택/선택 삭제/취소/완료를 추가했다. 2026-06-04/05 M8 사진 출처 하이라이트 구현: Google Vision OCR 줄 영역 보존, OCR 줄 ID(sourceRegionIds) 기반 근거 매칭, cautionItems[].source 반환, 결과 카드 '사진에서 확인', 원본 이미지 하이라이트 뷰어, 매칭 실패 안내, 새 기록 source 저장 경로를 연결했다. 이 개선은 AI 설명이 실제 계약서 사진 어디에서 나온 것인지 사용자가 직접 확인하게 하는 신뢰 UX로, 공모전 어필 포인트 문서에 정리했다. 실기기/실 OCR 사진에서 박스 위치 QA는 남음. 데모/제출물(M4) 남음",
     "runMode": "키 없으면 sample, 키 있으면 real (현재 server/.env 에 키 있음 → real 동작 확인)"
   },
   "handoff": {
@@ -75,6 +75,10 @@
     },
     "nextPlanningPromptUxSourceI18n": {
       "path": "03_Working/2026-06-03_다음기획_프롬프트_UIUX_출처하이라이트_다국어.md",
+      "status": "active"
+    },
+    "ocrSourceUxAppealPoint": {
+      "path": "03_Working/2026-06-05_OCR출처확인_UX_어필포인트.md",
       "status": "active"
     }
   },

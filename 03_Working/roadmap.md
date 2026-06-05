@@ -168,6 +168,8 @@
 
 2026-06-04 1차 구현: 서버가 Google Vision OCR 줄 영역을 정규화 좌표로 보존하고, `originalText`를 OCR 영역에 exact/normalized 순서로 매칭해 `cautionItems[].source`를 붙인다. 앱 결과 카드에는 `사진에서 확인`/매칭 실패 안내를 표시하고, 원본 이미지 뷰어에는 contain 여백 보정 하이라이트와 OCR 원문 근거 패널을 보여준다. 남은 일은 실기기/실 OCR 사진에서 박스 위치 QA다.
 
+2026-06-05 보강: 문자열 매칭만으로는 AI가 재구성한 `originalText`와 OCR 원문이 어긋날 수 있어, OCR 줄마다 `p1-r4` 같은 ID를 붙이고 AI가 `sourceRegionIds`를 반환하도록 바꿨다. 이 기능은 "AI 결과를 믿으라"가 아니라 "사진 속 원문에서 직접 확인하라"는 신뢰 UX이며, 공모전 어필 포인트는 `2026-06-05_OCR출처확인_UX_어필포인트.md`에 정리했다.
+
 | 작업 | 완료 기준 | 상태 |
 |---|---|---|
 | OCR 좌표 보존 | Google Vision 응답에서 페이지별 word/block bounding box를 보존하고 정규화 좌표로 변환 | done |
