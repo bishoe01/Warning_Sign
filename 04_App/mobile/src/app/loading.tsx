@@ -68,7 +68,7 @@ export default function LoadingScreen() {
         return;
       }
       try {
-        const result = await analyzeContract(uris, language);
+        const result = await analyzeContract(uris, language, session.getContractType());
         if (cancelled) return;
         const isSample = !!result.isSample;
         session.setResult(result, { isSample, error: null });

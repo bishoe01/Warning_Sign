@@ -4,6 +4,7 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel
 
 Language = Literal["ko", "en", "ne", "tet", "ru", "mn", "my", "bn", "vi", "uz", "id", "zh", "km", "ky", "th", "lo"]
+ContractType = Literal["manufacturing_construction_service", "agriculture_livestock_fishery"]
 CautionLevel = Literal["check", "review", "info"]
 LocalizedText = Dict[Language, str]
 

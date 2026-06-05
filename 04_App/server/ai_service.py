@@ -3,7 +3,7 @@ import json
 from typing import Optional, Union
 
 import config
-from models import AiAnalysis, AnalysisResult, LocalizedAnalysisPatch
+from models import AiAnalysis, AnalysisResult, ContractType, LocalizedAnalysisPatch
 from sample import SAMPLE_RESULT
 from source_matching import OcrRegion
 
@@ -35,6 +35,19 @@ LANGUAGE_NAMES = {
     "lo": "Lao",
 }
 
+DEFAULT_CONTRACT_TYPE: ContractType = "manufacturing_construction_service"
+SUPPORTED_CONTRACT_TYPES: set[str] = {
+    "manufacturing_construction_service",
+    "agriculture_livestock_fishery",
+}
+
+
+def normalize_contract_type(value: Optional[str]) -> ContractType:
+    if value in SUPPORTED_CONTRACT_TYPES:
+        return value  # type: ignore[return-value]
+    return DEFAULT_CONTRACT_TYPE
+
+
 def _response_languages(language: str) -> list[str]:
     langs = ["ko", "en"]
     if language not in langs:
@@ -65,11 +78,36 @@ def _ocr_region_prompt(source_regions: Optional[list[OcrRegion]]) -> str:
     return "\n".join(lines)
 
 
-def _build_user_prompt(ocr_text: str, language: str, source_regions: Optional[list[OcrRegion]] = None) -> str:
+def _contract_type_prompt(contract_type: ContractType) -> str:
+    if contract_type == "agriculture_livestock_fishery":
+        return """[계약서 유형: 농축산·어업]
+- 이 계약서는 농업·축산업·어업 분야 표준근로계약서 양식일 수 있다.
+- 재배작물, 가축 종류, 연근해어업, 양식어업, 소금채취업 등 실제 업무내용이 구체적으로 적혔는지 확인한다.
+- 농번기·농한기, 성어기·휴어기처럼 근로시간과 휴일이 달라질 수 있는 표현을 확인한다.
+- 근로시간·휴게·휴일은 업종 특성상 일반 제조업 양식처럼 단정하지 않는다.
+- 장시간 근로를 바로 위법이라고 단정하지 말고, 실제 근무표와 휴일 부여 방식을 확인하라고 안내한다.
+- 숙식 제공, 식사 제공, 근로자 부담금액은 임금에서 빠지는 비용이므로 반드시 확인한다."""
+
+    return """[계약서 유형: 제조·건설·서비스]
+- 이 계약서는 제조업·건설업·서비스업에서 쓰는 일반 표준근로계약서 양식일 수 있다.
+- 월 통상임금, 기본급, 고정 수당, 상여금, 수습기간 중 임금이 서로 모순되지 않는지 확인한다.
+- 연장·야간·휴일근로 수당 지급 설명이 있는지 확인한다.
+- 교대제, 1일 평균 시간외 근로시간, 휴일 유급/무급 선택을 확인한다.
+- 가사서비스업 또는 개인간병인 예외 문구가 보이면 단정하지 말고 별도 확인 안내로 둔다.
+- 지급방법, 통장·도장 관리 금지, 숙식비 부담금액을 확인한다."""
+
+
+def _build_user_prompt(
+    ocr_text: str,
+    language: str,
+    source_regions: Optional[list[OcrRegion]] = None,
+    contract_type: ContractType = DEFAULT_CONTRACT_TYPE,
+) -> str:
     response_languages = _response_languages(language)
     language_desc = ", ".join(f"{lang}({LANGUAGE_NAMES.get(lang, lang)})" for lang in response_languages)
     localized = _localized_shape(response_languages)
     source_region_text = _ocr_region_prompt(source_regions)
+    contract_type_instruction = _contract_type_prompt(contract_type)
     source_region_instruction = ""
     if source_region_text:
         source_region_instruction = f"""
@@ -99,6 +137,13 @@ def _build_user_prompt(ocr_text: str, language: str, source_regions: Optional[li
 - 다른 국가의 노동법 위반 여부를 판단하지 않는다.
 - 베트남어, 네팔어, 태국어 등 다른 언어로 설명하더라도 베트남, 네팔, 태국 노동법 기준을 섞지 않는다.
 - 다국어 설명은 한국어 원문과 한국 근로계약서 맥락을 쉽게 이해하도록 돕는 용도다.
+
+{contract_type_instruction}
+
+[계약서 유형 mismatch 안내]
+- OCR 제목이나 양식명이 사용자가 선택한 계약서 유형과 달라 보이면 분석을 막지 않는다.
+- 그 경우 notice 또는 info/review 수준 cautionItem 에 "선택한 종류와 다를 수 있어요" 라는 의미를 넣는다.
+- 이 안내는 법률 판정처럼 쓰지 않는다. 계약서 제목과 선택한 종류가 다를 수 있으니 원본 제목을 다시 확인하라는 이해 보조로만 쓴다.
 
 [핵심 조건 추출 규칙]
 - 계약서에 실제로 적힌 값만 summary 에 쓴다.
@@ -302,8 +347,14 @@ def _existing_localization_patch(
     )
 
 
-def analyze(ocr_text: str, language: str = "ko", source_regions: Optional[list[OcrRegion]] = None) -> AnalysisResult:
+def analyze(
+    ocr_text: str,
+    language: str = "ko",
+    source_regions: Optional[list[OcrRegion]] = None,
+    contract_type: str = DEFAULT_CONTRACT_TYPE,
+) -> AnalysisResult:
     """OCR 텍스트를 분석 결과 JSON 으로 변환한다."""
+    normalized_contract_type = normalize_contract_type(contract_type)
     if not config.USE_REAL_AI:
         return _sample_with_ocr(ocr_text)
 
@@ -317,7 +368,15 @@ def analyze(ocr_text: str, language: str = "ko", source_regions: Optional[list[O
             temperature=0.2,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_prompt(ocr_text, language, source_regions)},
+                {
+                    "role": "user",
+                    "content": _build_user_prompt(
+                        ocr_text,
+                        language,
+                        source_regions,
+                        normalized_contract_type,
+                    ),
+                },
             ],
         )
         content = completion.choices[0].message.content or "{}"

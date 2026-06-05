@@ -9,6 +9,7 @@ import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, shadow, spacing } from '@/constants/theme';
+import { CONTRACT_TYPES, DEFAULT_CONTRACT_TYPE, type ContractType } from '@/data/contractType';
 import { session } from '@/data/session';
 import type { Translation } from '@/i18n/translations';
 import { useI18n } from '@/i18n/useI18n';
@@ -50,6 +51,7 @@ export default function CaptureScreen() {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [frameW, setFrameW] = useState(0);
   const [frameH, setFrameH] = useState(0);
+  const [contractType, setContractType] = useState<ContractType>(DEFAULT_CONTRACT_TYPE);
 
   const [focused, setFocused] = useState(true);
   useFocusEffect(
@@ -149,6 +151,7 @@ export default function CaptureScreen() {
   const analyze = () => {
     if (pages.length === 0) return;
     session.setImages(pages);
+    session.setContractType(contractType);
     router.push('/loading');
   };
 
@@ -334,6 +337,25 @@ export default function CaptureScreen() {
                 <Text style={styles.secondaryText}>{t.select.gallery}</Text>
               </Pressable>
             </View>
+            <View style={styles.contractTypeBox}>
+              <Text style={styles.contractTypeTitle}>{t.select.contractTypeTitle}</Text>
+              <View style={styles.contractTypeOptions}>
+                {CONTRACT_TYPES.map((option) => {
+                  const selected = contractType === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[styles.contractTypeOption, selected && styles.contractTypeOptionSelected]}
+                      onPress={() => setContractType(option.value)}>
+                      <Text style={[styles.contractTypeText, selected && styles.contractTypeTextSelected]}>
+                        {t.select.contractTypes[option.labelKey]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.contractTypeHint}>{t.select.contractTypeHint}</Text>
+            </View>
             <Pressable
               style={({ pressed }) => [styles.analyzeButton, shadow.button, pressed && styles.pressed]}
               onPress={analyze}>
@@ -496,6 +518,53 @@ const styles = StyleSheet.create({
   shutterDisabled: { opacity: 0.35 },
 
   reviewActions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  contractTypeBox: {
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: spacing.md,
+  },
+  contractTypeTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  contractTypeOptions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  contractTypeOption: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  contractTypeOptionSelected: {
+    backgroundColor: colors.white,
+    borderColor: colors.white,
+  },
+  contractTypeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.cameraTextDim,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  contractTypeTextSelected: {
+    color: colors.text,
+  },
+  contractTypeHint: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.cameraTextDim,
+    lineHeight: 16,
+  },
   secondaryBtn: {
     flex: 1,
     flexDirection: 'row',

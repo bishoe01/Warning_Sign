@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/constants/config';
+import type { ContractType } from '@/data/contractType';
 import type { AnalysisResult, Language } from '@/data/sampleAnalysis';
 import type { LocalizedAnalysisPatch } from '@/data/localizationMerge';
 
@@ -37,11 +38,13 @@ async function assertBackendReachable(): Promise<void> {
 export async function analyzeContract(
   imageUris: string[],
   language: Language,
+  contractType: ContractType,
 ): Promise<AnalysisResult> {
   await assertBackendReachable();
 
   const form = new FormData();
   form.append('language', language);
+  form.append('contractType', contractType);
   imageUris.forEach((uri, i) => {
     form.append('files', {
       uri,

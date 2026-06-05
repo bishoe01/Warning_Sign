@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
-from ai_service import analyze, localize_analysis
+from ai_service import analyze, localize_analysis, normalize_contract_type
 from models import AnalysisResult, LocalizeAnalysisRequest, LocalizedAnalysisPatch
 from ocr_service import run_ocr_with_layout
 from source_matching import attach_sources_to_analysis
@@ -42,9 +42,11 @@ def _safe_error_detail(exc: RuntimeError) -> str:
 async def analyze_contract(
     files: List[UploadFile] = File(...),
     language: str = Form("ko"),
+    contractType: str = Form("manufacturing_construction_service"),
 ):
     if language not in SUPPORTED_LANGUAGES:
         language = "ko"
+    contract_type = normalize_contract_type(contractType)
 
     texts = []
     regions = []
@@ -58,17 +60,17 @@ async def analyze_contract(
             regions.extend(ocr.regions)
     except RuntimeError as exc:
         print(
-            f"[analyze:error] lang={language} pages={len(files)} bytes={total_bytes} "
+            f"[analyze:error] lang={language} contractType={contract_type} pages={len(files)} bytes={total_bytes} "
             f"ocr={'real' if config.USE_REAL_OCR else 'sample'} "
             f"reason={type(exc).__name__} detail={_safe_error_detail(exc)}"
         )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     ocr_text = "\n\n".join(t for t in texts if t)  # 페이지 구분으로 합치기
     try:
-        result = attach_sources_to_analysis(analyze(ocr_text, language, regions), regions)
+        result = attach_sources_to_analysis(analyze(ocr_text, language, regions, contract_type), regions)
     except RuntimeError as exc:
         print(
-            f"[analyze:error] lang={language} pages={len(files)} bytes={total_bytes} "
+            f"[analyze:error] lang={language} contractType={contract_type} pages={len(files)} bytes={total_bytes} "
             f"ai={'real' if config.USE_REAL_AI else 'sample'} "
             f"reason={type(exc).__name__} detail={_safe_error_detail(exc)}"
         )
@@ -76,7 +78,7 @@ async def analyze_contract(
 
     # 안전: 계약서 이미지/원문은 저장·로그 X (페이지 수/총 바이트/모드만)
     print(
-        f"[analyze] lang={language} pages={len(files)} bytes={total_bytes} "
+        f"[analyze] lang={language} contractType={contract_type} pages={len(files)} bytes={total_bytes} "
         f"ocr={'real' if config.USE_REAL_OCR else 'sample'} "
         f"ai={'real' if config.USE_REAL_AI else 'sample'} "
         f"isSample={result.isSample} "

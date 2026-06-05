@@ -62,6 +62,41 @@ class AiServiceValidationTest(unittest.TestCase):
         self.assertIn("sourceRegionIds", prompt)
         self.assertIn("사진 하이라이트", prompt)
 
+    def test_prompt_includes_manufacturing_contract_type_checklist(self):
+        prompt = _build_user_prompt(
+            "표준근로계약서\n교대제\n연장, 야간, 휴일근로",
+            "ko",
+            contract_type="manufacturing_construction_service",
+        )
+
+        self.assertIn("제조·건설·서비스", prompt)
+        self.assertIn("교대제", prompt)
+        self.assertIn("연장·야간·휴일근로 수당", prompt)
+        self.assertIn("월 통상임금", prompt)
+
+    def test_prompt_includes_agriculture_contract_type_checklist(self):
+        prompt = _build_user_prompt(
+            "표준근로계약서(농업·축산업·어업 분야)\n농번기\n성어기",
+            "ko",
+            contract_type="agriculture_livestock_fishery",
+        )
+
+        self.assertIn("농축산·어업", prompt)
+        self.assertIn("농번기", prompt)
+        self.assertIn("성어기", prompt)
+        self.assertIn("근로시간·휴게·휴일", prompt)
+        self.assertIn("단정하지 않는다", prompt)
+
+    def test_prompt_requests_contract_type_mismatch_notice(self):
+        prompt = _build_user_prompt(
+            "표준근로계약서(농업·축산업·어업 분야)\n농번기",
+            "ko",
+            contract_type="manufacturing_construction_service",
+        )
+
+        self.assertIn("선택한 종류와 다를 수", prompt)
+        self.assertIn("법률 판정처럼 쓰지 않는다", prompt)
+
     def test_original_text_must_be_present_in_ocr_text(self):
         ocr_text = (GOLDEN_OCR_DIR / "abnormal_salary.txt").read_text(encoding="utf-8")
         analysis = make_analysis("임금이 너무 낮습니다")

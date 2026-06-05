@@ -36,6 +36,12 @@ export type Translation = {
     tip: string;
     camera: string;
     cameraPermission: string;
+    contractTypeTitle: string;
+    contractTypeHint: string;
+    contractTypes: {
+      manufacturingConstructionService: string;
+      agricultureLivestockFishery: string;
+    };
     analyze: (count: number) => string;
   };
   loading: {
@@ -131,6 +137,12 @@ const en: Translation = {
     tip: 'Keep the text clear and avoid shadows',
     camera: 'Camera',
     cameraPermission: 'Camera permission',
+    contractTypeTitle: 'Contract type',
+    contractTypeHint: 'If the title looks different, we will mention it in the analysis.',
+    contractTypes: {
+      manufacturingConstructionService: 'Manufacturing, construction, service',
+      agricultureLivestockFishery: 'Agriculture, livestock, fishery',
+    },
     analyze: (count) => `Analyze (${count} page${count === 1 ? '' : 's'})`,
   },
   loading: {
@@ -298,6 +310,12 @@ function makeSimple(c: SimpleCopy): Translation {
       tip: c.tip,
       camera: c.camera,
       cameraPermission: c.cameraPermission,
+      contractTypeTitle: 'Contract type',
+      contractTypeHint: 'If the title looks different, we will mention it in the analysis.',
+      contractTypes: {
+        manufacturingConstructionService: 'Manufacturing, construction, service',
+        agricultureLivestockFishery: 'Agriculture, livestock, fishery',
+      },
       analyze: (count) => `${c.analyzeWord} (${count} ${c.pageWord})`,
     },
     loading: {
@@ -1389,6 +1407,12 @@ export const translations: Record<AppLanguage, Translation> = {
       tip: '그림자 없이 글자가 또렷하게 나오도록 맞춰 주세요',
       camera: '촬영',
       cameraPermission: '촬영 권한',
+      contractTypeTitle: '계약서 종류',
+      contractTypeHint: '계약서 제목이 다르면 분석 결과에서 다시 알려드릴게요.',
+      contractTypes: {
+        manufacturingConstructionService: '제조·건설·서비스',
+        agricultureLivestockFishery: '농축산·어업',
+      },
       analyze: (count) => `분석하기 (${count}장)`,
     },
     loading: {
