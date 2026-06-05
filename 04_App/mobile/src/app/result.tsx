@@ -168,7 +168,7 @@ export default function ResultScreen() {
             <Text style={styles.savedNoteText}>{tr.saved}</Text>
           </View>
         )}
-        <LanguageTabs value={language} onChange={setLanguage} />
+        <LanguageTabs value={language} onChange={setLanguage} variant="dropdown" label={t.settings.languageTitle} />
 
         {!languageReady && (
           <View style={styles.localizationNote}>
