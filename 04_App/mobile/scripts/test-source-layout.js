@@ -18,7 +18,7 @@ function loadTsModule(relativePath) {
   return module.exports;
 }
 
-const { containRect, sourceBoxToRect } = loadTsModule('src/data/sourceLayout.ts');
+const { containRect, expandRect, sourceBoxToRect } = loadTsModule('src/data/sourceLayout.ts');
 
 assert.deepStrictEqual(containRect({ width: 300, height: 300 }, { width: 100, height: 200 }), {
   left: 75,
@@ -42,6 +42,28 @@ assert.deepStrictEqual(containRect({ width: 0, height: 300 }, { width: 100, heig
   top: 0,
   width: 0,
   height: 0,
+});
+
+assert.deepStrictEqual(expandRect(
+  { left: 90, top: 60, width: 75, height: 30 },
+  { left: 75, top: 0, width: 150, height: 300 },
+  { horizontal: 8, vertical: 7 },
+), {
+  left: 82,
+  top: 53,
+  width: 91,
+  height: 44,
+});
+
+assert.deepStrictEqual(expandRect(
+  { left: 76, top: 4, width: 20, height: 8 },
+  { left: 75, top: 0, width: 150, height: 300 },
+  { horizontal: 8, vertical: 7 },
+), {
+  left: 75,
+  top: 0,
+  width: 29,
+  height: 19,
 });
 
 console.log('source layout tests passed');

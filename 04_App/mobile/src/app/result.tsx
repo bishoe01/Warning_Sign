@@ -14,7 +14,7 @@ import * as historyStore from '@/data/historyStore';
 import { analysisHasLanguage, mergeLocalizedAnalysisPatch } from '@/data/localizationMerge';
 import type { CautionItem } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
-import { containRect, sourceBoxToRect, type Size } from '@/data/sourceLayout';
+import { containRect, expandRect, sourceBoxToRect, type Size } from '@/data/sourceLayout';
 import { DEFAULT_LANGUAGE, type AppLanguage } from '@/i18n/languages';
 import { getLocalized } from '@/i18n/localized';
 import { useI18n } from '@/i18n/useI18n';
@@ -237,8 +237,11 @@ export default function ResultScreen() {
           >
             {viewer && <Image source={{ uri: viewer.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />}
             {renderedImageRect && viewerBoxes.map((box, index) => {
-              const rect = sourceBoxToRect(box, renderedImageRect);
-              return <View key={`${box.pageIndex}-${index}`} style={[styles.sourceHighlight, rect]} />;
+              const rect = expandRect(sourceBoxToRect(box, renderedImageRect), renderedImageRect, {
+                horizontal: 8,
+                vertical: 7,
+              });
+              return <View key={`${box.pageIndex}-${index}`} pointerEvents="none" style={[styles.sourceHighlight, rect]} />;
             })}
           </Pressable>
 
@@ -300,10 +303,14 @@ const styles = StyleSheet.create({
   viewerStage: { flex: 1, width: '100%', overflow: 'hidden' },
   sourceHighlight: {
     position: 'absolute',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.primary,
-    backgroundColor: 'rgba(49, 130, 246, 0.22)',
-    borderRadius: 4,
+    backgroundColor: 'rgba(49, 130, 246, 0.12)',
+    borderRadius: 7,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 2 },
   },
   sourcePanel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.lg, gap: 6, marginTop: spacing.md },
   sourcePanelTitle: { fontSize: 15, fontWeight: '900', color: colors.text },
