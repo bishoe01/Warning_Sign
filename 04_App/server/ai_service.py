@@ -35,6 +35,9 @@ LANGUAGE_NAMES = {
     "lo": "Lao",
 }
 
+# 저자원 언어는 모델이 target 값을 비우거나 누락할 때가 있어, 검증 실패 시 재시도한다.
+LOCALIZE_MAX_ATTEMPTS = 3
+
 DEFAULT_CONTRACT_TYPE: ContractType = "manufacturing_construction_service"
 SUPPORTED_CONTRACT_TYPES: set[str] = {
     "manufacturing_construction_service",
@@ -241,6 +244,8 @@ targetLanguage: {target_language} ({language_name})
 - localized object 는 반드시 {localized} 형식처럼 target language 필드만 포함한다.
 - cautionItems 는 입력과 같은 개수({item_count}개), 같은 순서로 작성한다.
 - cautionItems 각 항목은 title 과 explanation 만 포함한다.
+- summary 5개 항목, 모든 cautionItems 의 title/explanation, notice 의 {target_language} 값을 빠짐없이 채운다. 어떤 값도 빈 문자열("")로 두지 않는다.
+- {target_language}({language_name}) 가 번역하기 어려운 언어라도 그 언어로 자연스럽게 작성하고, 영어나 한국어로 대체하지 않는다.
 
 JSON 형식:
 {{"targetLanguage": "{target_language}", "summary": {{"salary": {localized}, "workHours": {localized}, "holiday": {localized}, "contractPeriod": {localized}, "deduction": {localized}}}, "cautionItems": [{{"title": {localized}, "explanation": {localized}}}], "notice": {localized}}}
@@ -395,6 +400,39 @@ def analyze(
         raise RuntimeError(f"AI analysis failed: {exc}") from exc
 
 
+def _localization_retry_reminder(target_language: str) -> str:
+    language_name = LANGUAGE_NAMES.get(target_language, target_language)
+    return (
+        "\n\n[재시도 안내]\n"
+        f"- 직전 응답에서 일부 {target_language}({language_name}) 값이 비어 있거나 누락되었다.\n"
+        f"- 이번에는 summary, cautionItems, notice 의 모든 {target_language} 필드를 빠짐없이 채운다.\n"
+        "- 어떤 값도 빈 문자열로 두지 않고, 영어나 한국어로 대체하지 않는다."
+    )
+
+
+def _localize_with_retry(
+    call_model,
+    target_language: str,
+    expected_caution_count: int,
+    max_attempts: int = LOCALIZE_MAX_ATTEMPTS,
+) -> LocalizedAnalysisPatch:
+    """call_model(attempt) 가 돌려준 JSON 을 파싱·검증하고, 실패하면 재시도한다.
+
+    저자원 언어에서 모델이 target 값을 비우는 경우가 있어, 빈 값/누락 검증 실패 시
+    재시도한다. 모든 시도가 실패하면 마지막 오류를 RuntimeError 로 올린다.
+    """
+    last_error: Optional[Exception] = None
+    for attempt in range(max_attempts):
+        try:
+            content = call_model(attempt) or "{}"
+            patch = LocalizedAnalysisPatch(**json.loads(content))
+            _validate_localization_patch(patch, target_language, expected_caution_count)
+            return patch
+        except Exception as exc:
+            last_error = exc
+    raise RuntimeError(f"AI localization failed: {last_error}")
+
+
 def localize_analysis(analysis: AnalysisResult, target_language: str) -> LocalizedAnalysisPatch:
     """기존 분석 결과에서 target language 필드만 생성한다."""
     if not config.USE_REAL_AI:
@@ -404,18 +442,23 @@ def localize_analysis(analysis: AnalysisResult, target_language: str) -> Localiz
         from openai import OpenAI
 
         client = OpenAI(api_key=config.OPENAI_API_KEY)
+    except Exception as exc:
+        raise RuntimeError(f"AI localization failed: {exc}") from exc
+
+    base_prompt = _build_localization_user_prompt(analysis, target_language)
+
+    def call_model(attempt: int) -> str:
+        # 재시도에서는 빈 값 금지를 다시 강조하고 temperature 를 살짝 올려 변화를 준다.
+        user_prompt = base_prompt if attempt == 0 else base_prompt + _localization_retry_reminder(target_language)
         completion = client.chat.completions.create(
             model=config.OPENAI_MODEL,
             response_format={"type": "json_object"},
-            temperature=0.2,
+            temperature=0.2 if attempt == 0 else 0.4,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_localization_user_prompt(analysis, target_language)},
+                {"role": "user", "content": user_prompt},
             ],
         )
-        content = completion.choices[0].message.content or "{}"
-        patch = LocalizedAnalysisPatch(**json.loads(content))
-        _validate_localization_patch(patch, target_language, len(analysis.cautionItems))
-        return patch
-    except Exception as exc:
-        raise RuntimeError(f"AI localization failed: {exc}") from exc
+        return completion.choices[0].message.content or "{}"
+
+    return _localize_with_retry(call_model, target_language, len(analysis.cautionItems))

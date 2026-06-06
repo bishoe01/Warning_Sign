@@ -1,14 +1,37 @@
+import json
 import unittest
 from pathlib import Path
 
 from ai_service import (
+    LOCALIZE_MAX_ATTEMPTS,
     _build_localization_user_prompt,
+    _localize_with_retry,
     _validate_ai_analysis_against_ocr,
     _validate_localization_patch,
     _build_user_prompt,
 )
 from models import AiAnalysis, LocalizedAnalysisPatch
 from source_matching import OcrRegion
+
+
+def _localization_content(target_language: str, salary_text: str) -> str:
+    return json.dumps(
+        {
+            "targetLanguage": target_language,
+            "summary": {
+                "salary": {target_language: salary_text},
+                "workHours": {target_language: "x"},
+                "holiday": {target_language: "x"},
+                "contractPeriod": {target_language: "x"},
+                "deduction": {target_language: "x"},
+            },
+            "cautionItems": [
+                {"title": {target_language: "x"}, "explanation": {target_language: "x"}}
+            ],
+            "notice": {target_language: "x"},
+        },
+        ensure_ascii=False,
+    )
 
 
 GOLDEN_OCR_DIR = Path(__file__).parent / "golden_ocr"
@@ -173,6 +196,43 @@ class AiServiceValidationTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "missing localized keys"):
             _validate_localization_patch(patch, "th", len(source.cautionItems))
+
+    def test_localization_prompt_forbids_empty_target_value(self):
+        analysis = make_analysis("월 통상임금(100)원")
+        prompt = _build_localization_user_prompt(analysis, "tet")
+
+        self.assertIn("빈 문자열", prompt)
+        self.assertIn("영어나 한국어로 대체하지 않는다", prompt)
+
+    def test_localize_retry_recovers_when_first_attempt_leaves_target_empty(self):
+        source = make_analysis("월 통상임금(100)원")
+        responses = [
+            _localization_content("tet", ""),  # 저자원 언어 빈 값 (실제 실패 케이스)
+            _localization_content("tet", "Salariu kada fulan 100 won"),
+        ]
+        calls: list[int] = []
+
+        def call_model(attempt: int) -> str:
+            calls.append(attempt)
+            return responses[attempt]
+
+        patch = _localize_with_retry(call_model, "tet", len(source.cautionItems))
+
+        self.assertEqual(patch.summary.salary["tet"], "Salariu kada fulan 100 won")
+        self.assertEqual(calls, [0, 1])
+
+    def test_localize_retry_gives_up_after_max_attempts(self):
+        source = make_analysis("월 통상임금(100)원")
+        calls: list[int] = []
+
+        def call_model(attempt: int) -> str:
+            calls.append(attempt)
+            return _localization_content("tet", "")  # 항상 빈 값
+
+        with self.assertRaisesRegex(RuntimeError, "AI localization failed"):
+            _localize_with_retry(call_model, "tet", len(source.cautionItems))
+
+        self.assertEqual(len(calls), LOCALIZE_MAX_ATTEMPTS)
 
 
 if __name__ == "__main__":
