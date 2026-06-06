@@ -1,8 +1,8 @@
-import { Feather } from '@expo/vector-icons';
+﻿import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { localizeAnalysis } from '@/api/contractApi';
@@ -34,8 +34,11 @@ export default function ResultScreen() {
   const [record, setRecord] = useState<historyStore.HistoryRecord | null>(null);
   const [sessionResult, setSessionResult] = useState(session.getResult());
   const [viewer, setViewer] = useState<SourceViewer | null>(null);
+  const [viewerCurrentPage, setViewerCurrentPage] = useState(0);
   const [viewerImageSize, setViewerImageSize] = useState<Size | null>(null);
   const [viewerStageSize, setViewerStageSize] = useState<Size>({ width: 0, height: 0 });
+  const viewerScrollRef = useRef<ScrollView>(null);
+  const { width: windowWidth } = useWindowDimensions();
   const [localizingLanguage, setLocalizingLanguage] = useState<AppLanguage | null>(null);
   const [localizationError, setLocalizationError] = useState<{ language: AppLanguage; message: string } | null>(null);
   const localizingRef = useRef<AppLanguage | null>(null);
@@ -98,6 +101,13 @@ export default function ResultScreen() {
     return () => { cancelled = true; };
   }, [data, fromHistory, language, languageReady, record]);
 
+  useEffect(() => {
+    if (!viewer) return;
+    const page = viewer.pageIndex;
+    const w = viewerStageSize.width || windowWidth;
+    viewerScrollRef.current?.scrollTo({ x: page * w, animated: false });
+  }, [viewer, viewerStageSize.width, windowWidth]);
+
   // 기록 로딩 중엔 직전 분석(session)이 한 프레임 보이는 깜빡임 방지 (모든 훅 선언 뒤에 위치)
   if (fromHistory && !record) {
     return (
@@ -125,9 +135,13 @@ export default function ResultScreen() {
     const uri = imageUris[source.pageIndex];
     if (!uri) return;
     setViewer({ uri, item, pageIndex: source.pageIndex });
+    setViewerCurrentPage(source.pageIndex);
   };
+
   const renderedImageRect = viewerImageSize ? containRect(viewerStageSize, viewerImageSize) : null;
-  const viewerBoxes = viewer?.item?.source?.boxes.filter((box) => box.pageIndex === viewer.pageIndex) ?? [];
+  const viewerBoxes = viewerCurrentPage === viewer?.pageIndex
+    ? (viewer?.item?.source?.boxes.filter((box) => box.pageIndex === viewerCurrentPage) ?? [])
+    : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -211,7 +225,7 @@ export default function ResultScreen() {
             <Text style={styles.sectionTitle}>{tr.originalImages(imageUris.length)}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
               {imageUris.map((uri, i) => (
-                <Pressable key={uri + i} onPress={() => setViewer({ uri, pageIndex: i })}>
+                <Pressable key={uri + i} onPress={() => { setViewer({ uri, pageIndex: i }); setViewerCurrentPage(i); }}>
                   <Image source={{ uri }} style={styles.originalThumb} contentFit="cover" />
                 </Pressable>
               ))}
@@ -227,29 +241,46 @@ export default function ResultScreen() {
               <Feather name="x" size={22} color="#fff" />
             </Pressable>
             <Text style={styles.viewerTitle}>{viewer?.item ? tr.sourceViewerTitle : tr.originalImages(imageUris.length)}</Text>
-            <Text style={styles.viewerPage}>{viewer ? `${viewer.pageIndex + 1}/${imageUris.length}` : ''}</Text>
+            <Text style={styles.viewerPage}>{viewer ? `${viewerCurrentPage + 1}/${imageUris.length}` : ''}</Text>
           </View>
 
-          <Pressable
-            style={styles.viewerStage}
-            onLayout={(event) => setViewerStageSize(event.nativeEvent.layout)}
-            onPress={() => setViewer(null)}
+          <ScrollView
+            ref={viewerScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={16}
+            style={styles.viewerCarousel}
+            onLayout={(e) => setViewerStageSize(e.nativeEvent.layout)}
+            onMomentumScrollEnd={(e) => {
+              const w = viewerStageSize.width || windowWidth;
+              const page = Math.round(e.nativeEvent.contentOffset.x / w);
+              setViewerCurrentPage(page);
+            }}
           >
-            {viewer && <Image source={{ uri: viewer.uri }} style={StyleSheet.absoluteFill} contentFit="contain" />}
-            {renderedImageRect && viewerBoxes.map((box, index) => {
-              const rect = expandRect(sourceBoxToRect(box, renderedImageRect), renderedImageRect, {
-                horizontal: 8,
-                vertical: 7,
-              });
-              return <View key={`${box.pageIndex}-${index}`} pointerEvents="none" style={[styles.sourceHighlight, rect]} />;
-            })}
-          </Pressable>
+            {imageUris.map((uri, i) => (
+              <Pressable
+                key={`slide-${i}`}
+                style={[styles.viewerSlide, { width: viewerStageSize.width || windowWidth }]}
+                onPress={() => setViewer(null)}
+              >
+                <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
+                {i === viewer?.pageIndex && renderedImageRect && viewerBoxes.map((box, index) => {
+                  const rect = expandRect(sourceBoxToRect(box, renderedImageRect), renderedImageRect, {
+                    horizontal: 8,
+                    vertical: 7,
+                  });
+                  return <View key={`${box.pageIndex}-${index}`} pointerEvents="none" style={[styles.sourceHighlight, rect]} />;
+                })}
+              </Pressable>
+            ))}
+          </ScrollView>
 
           {viewer?.item && (
             <View style={styles.sourcePanel}>
               <Text style={styles.sourcePanelTitle}>{getLocalized(viewer.item.title, displayLanguage)}</Text>
               <Text style={styles.sourcePanelLabel}>{tr.sourceQuoteLabel}</Text>
-              <Text style={styles.sourcePanelQuote}>“{viewer.item.source?.quote ?? viewer.item.originalText}”</Text>
+              <Text style={styles.sourcePanelQuote}>"{viewer.item.source?.quote ?? viewer.item.originalText}"</Text>
               <Text style={styles.sourcePanelHint}>
                 {viewer.item.source?.confidence === 'medium' ? tr.sourceLowConfidence : tr.sourceUsedHint}
               </Text>
@@ -295,12 +326,13 @@ const styles = StyleSheet.create({
   sampleDesc: { fontSize: 12, color: '#92400E', fontWeight: '600', lineHeight: 17 },
   originalBlock: { marginTop: spacing.sm, gap: spacing.sm },
   originalThumb: { width: 92, height: 124, borderRadius: radius.md, backgroundColor: colors.bgElevated },
-  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', paddingHorizontal: spacing.md },
-  viewerHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.md },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)' },
+  viewerHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.md, paddingHorizontal: spacing.md },
   viewerClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   viewerTitle: { flex: 1, color: '#fff', fontSize: 16, fontWeight: '800' },
   viewerPage: { color: 'rgba(255,255,255,0.74)', fontSize: 13, fontWeight: '800' },
-  viewerStage: { flex: 1, width: '100%', overflow: 'hidden' },
+  viewerCarousel: { flex: 1 },
+  viewerSlide: { flex: 1, overflow: 'hidden' },
   sourceHighlight: {
     position: 'absolute',
     borderWidth: 1.5,
@@ -312,7 +344,7 @@ const styles = StyleSheet.create({
     shadowRadius: 7,
     shadowOffset: { width: 0, height: 2 },
   },
-  sourcePanel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.lg, gap: 6, marginTop: spacing.md },
+  sourcePanel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.lg, gap: 6, marginTop: spacing.md, marginHorizontal: spacing.md },
   sourcePanelTitle: { fontSize: 15, fontWeight: '900', color: colors.text },
   sourcePanelLabel: { fontSize: 11, fontWeight: '800', color: colors.textTertiary, marginTop: 4 },
   sourcePanelQuote: { fontSize: 13, color: colors.textSecondary, lineHeight: 20, fontWeight: '700' },
