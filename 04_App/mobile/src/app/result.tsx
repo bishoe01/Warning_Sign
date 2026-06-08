@@ -2,7 +2,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { localizeAnalysis } from '@/api/contractApi';
@@ -38,6 +38,8 @@ export default function ResultScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const fromHistory = !!id;
   const [record, setRecord] = useState<historyStore.HistoryRecord | null>(null);
+  const [recordTitleDraft, setRecordTitleDraft] = useState('');
+  const [recordTitleSaved, setRecordTitleSaved] = useState(false);
   const [sessionResult, setSessionResult] = useState(session.getResult());
   const [viewer, setViewer] = useState<SourceViewer | null>(null);
   const [viewerCurrentPage, setViewerCurrentPage] = useState(0);
@@ -55,6 +57,12 @@ export default function ResultScreen() {
   const failedLocalizationRef = useRef<AppLanguage | null>(null);
   const tr = t.result;
   useEffect(() => { if (id) historyStore.get(id).then((r) => (r ? setRecord(r) : router.back())); }, [id, router]);
+
+  useEffect(() => {
+    if (!record) return;
+    setRecordTitleDraft(historyStore.displayTitle(record));
+    setRecordTitleSaved(false);
+  }, [record?.id]);
 
   const data = fromHistory ? record?.result : sessionResult;
   const imageUris = fromHistory && record ? historyStore.pageUris(record) : session.getImages();
@@ -159,6 +167,15 @@ export default function ResultScreen() {
   const isSample = meta.isSample || !!data!.isSample;
   const isLocalizing = !languageReady && localizingLanguage === language;
   const currentLocalizationError = localizationError?.language === language ? localizationError.message : null;
+  const saveRecordTitle = () => {
+    if (!fromHistory || !record) return;
+    void historyStore.updateTitle(record.id, recordTitleDraft).then((updated) => {
+      if (!updated) return;
+      setRecord(updated);
+      setRecordTitleDraft(historyStore.displayTitle(updated));
+      setRecordTitleSaved(true);
+    });
+  };
   const openSourceViewer = (item: CautionItem) => {
     const source = item.source;
     if (!source || source.confidence === 'low') return;
@@ -212,6 +229,35 @@ export default function ResultScreen() {
           </View>
         )}
         <LanguageTabs value={language} onChange={setLanguage} variant="dropdown" label={t.settings.languageTitle} />
+
+        {fromHistory && record && (
+          <View style={styles.recordTitleCard}>
+            <View style={styles.recordTitleHeader}>
+              <Text style={styles.recordTitleLabel}>{tr.recordTitleLabel}</Text>
+              {recordTitleSaved && <Text style={styles.recordTitleSaved}>{tr.recordTitleSaved}</Text>}
+            </View>
+            <View style={styles.recordTitleRow}>
+              <TextInput
+                value={recordTitleDraft}
+                onChangeText={(value) => {
+                  setRecordTitleDraft(value);
+                  setRecordTitleSaved(false);
+                }}
+                onSubmitEditing={saveRecordTitle}
+                onBlur={saveRecordTitle}
+                placeholder={tr.recordTitlePlaceholder}
+                placeholderTextColor={colors.textTertiary}
+                maxLength={48}
+                returnKeyType="done"
+                style={styles.recordTitleInput}
+              />
+              <Pressable style={styles.recordTitleSaveButton} onPress={saveRecordTitle} hitSlop={8}>
+                <Feather name="check" size={17} color={colors.primary} />
+                <Text style={styles.recordTitleSaveText}>{tr.recordTitleSave}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {!languageReady && (
           <View style={styles.localizationNote}>
@@ -421,6 +467,36 @@ const styles = StyleSheet.create({
   savedNote: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primarySoft,
     borderRadius: radius.md, paddingVertical: 9, paddingHorizontal: spacing.md },
   savedNoteText: { flex: 1, fontSize: 12, color: colors.primary, fontWeight: '700' },
+  recordTitleCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  recordTitleHeader: { flexDirection: 'row', alignItems: 'center' },
+  recordTitleLabel: { flex: 1, fontSize: 12, color: colors.textTertiary, fontWeight: '800' },
+  recordTitleSaved: { fontSize: 11, color: colors.primary, fontWeight: '800' },
+  recordTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  recordTitleInput: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+    paddingHorizontal: spacing.md,
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '800',
+  },
+  recordTitleSaveButton: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  recordTitleSaveText: { fontSize: 12, color: colors.primary, fontWeight: '900' },
   localizationNote: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface,
     borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: spacing.md },
   localizationText: { flex: 1, fontSize: 12, color: colors.textSecondary, fontWeight: '700', lineHeight: 17 },

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { AnalysisResult } from '@/data/sampleAnalysis';
+import { cleanRecordTitle, deriveRecordTitle } from '@/data/historyTitle';
 
 const KEY = '@contract-helper/history';
 const ROOT = 'history'; // documentDirectory 하위 폴더
@@ -9,6 +10,7 @@ const ROOT = 'history'; // documentDirectory 하위 폴더
 export type HistoryRecord = {
   id: string;            // createdAt 문자열
   createdAt: number;     // epoch ms
+  title?: string;         // 사용자가 붙인 기록 이름
   result: AnalysisResult;
   imageFiles: string[];  // 기록 폴더 내 파일명 (예: ['page-1.jpg'])
   isSample?: boolean;
@@ -37,7 +39,7 @@ export function pageUris(record: HistoryRecord): string[] {
 export async function save(
   result: AnalysisResult,
   imageUris: string[],
-  opts: { isSample?: boolean } = {},
+  opts: { isSample?: boolean; title?: string } = {},
 ): Promise<HistoryRecord> {
   const createdAt = Date.now();
   const id = String(createdAt);
@@ -56,7 +58,14 @@ export async function save(
       throw err;
     }
   }
-  const record: HistoryRecord = { id, createdAt, result, imageFiles, isSample: opts.isSample ?? !!result.isSample };
+  const record: HistoryRecord = {
+    id,
+    createdAt,
+    title: cleanRecordTitle(opts.title),
+    result,
+    imageFiles,
+    isSample: opts.isSample ?? !!result.isSample,
+  };
   const all = await readAll();
   await writeAll([record, ...all]);
   return record;
@@ -81,6 +90,27 @@ export async function updateResult(id: string, result: AnalysisResult): Promise<
   next[index] = nextRecord;
   await writeAll(next);
   return nextRecord;
+}
+
+export async function updateTitle(id: string, title: string): Promise<HistoryRecord | null> {
+  const all = await readAll();
+  const index = all.findIndex((r) => r.id === id);
+  if (index < 0) return null;
+  const cleanedTitle = cleanRecordTitle(title);
+  const nextRecord: HistoryRecord = { ...all[index], title: cleanedTitle };
+  const next = [...all];
+  next[index] = nextRecord;
+  await writeAll(next);
+  return nextRecord;
+}
+
+export function displayTitle(record: HistoryRecord): string {
+  return deriveRecordTitle({
+    title: record.title,
+    createdAt: record.createdAt,
+    summary: record.result.summary,
+    ocrText: record.result.ocrText,
+  });
 }
 
 export async function remove(id: string): Promise<void> {

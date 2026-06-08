@@ -72,7 +72,7 @@ export default function LoadingScreen() {
         if (cancelled) return;
         const isSample = !!result.isSample;
         session.setResult(result, { isSample, error: null });
-        void historyStore.save(result, uris, { isSample }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
+        void historyStore.save(result, uris, { isSample, title: session.getRecordTitle() }).catch(() => { /* 저장 실패는 흐름 안 막음 */ });
         const wait = Math.max(0, minDisplayMs - (Date.now() - startedAt));
         timers.push(setTimeout(() => {
           if (cancelled) return;
