@@ -35,6 +35,9 @@ LANGUAGE_NAMES = {
     "lo": "Lao",
 }
 
+# 저자원 언어는 모델이 target 값을 비우거나 누락할 때가 있어, 검증 실패 시 재시도한다.
+LOCALIZE_MAX_ATTEMPTS = 3
+
 DEFAULT_CONTRACT_TYPE: ContractType = "manufacturing_construction_service"
 SUPPORTED_CONTRACT_TYPES: set[str] = {
     "manufacturing_construction_service",
@@ -155,7 +158,7 @@ def _build_user_prompt(
 [주의 조항 체크리스트]
 - 필수 기재 확인: 근로계약기간, 근무장소, 업무내용, 근로시간, 휴게시간, 휴일, 임금, 임금지급일, 지급방법, 숙식 제공/공제 여부가 빠졌는지 본다.
 - 임금 확인: 금액이 너무 낮아 보이거나, 기본급/수당/상여/수습기간 임금이 서로 모순되거나, 임금 항목이 비어 있으면 표시한다.
-- 근로시간 확인: 24시간제에서 불가능한 시간(예: 100시), 시작/종료 시간이 뒤섞인 값, 휴게시간 누락, 연장근로가 있는데 수당 설명이 없는 경우를 표시한다.
+- 근로시간 확인: 24시간제에서 불가능한 시간, 시작/종료 시간이 뒤섞인 값, 휴게시간 누락, 연장근로가 있는데 수당 설명이 없는 경우를 표시한다.
 - 휴일/휴게 확인: 주휴일, 공휴일 유급/무급, 휴게시간이 비어 있거나 매우 짧아 보이거나 사용자가 이해하기 어렵게 적힌 경우를 표시한다.
 - 공제/숙식비 확인: 숙식비, 기숙사비, 식비, 교육비, 기타 공제가 있는 경우 금액과 동의 여부를 확인 항목으로 표시한다. 특히 월 단위 공제 금액이 적혀 있으면 빠뜨리지 말고 cautionItems 에 넣는다.
 - 불리할 수 있는 조항 확인: 퇴사 시 교육비/위약금 반환, 무단결근 벌금, 여권/통장/도장 보관, 연장·야간·휴일수당 미지급, 임의 공제, 과도한 손해배상 같은 문구를 표시한다.
@@ -168,9 +171,9 @@ def _build_user_prompt(
 - "월 통상임금( )원", "시 분 ~ 시 분", "년 월 일", "( )" 같은 빈칸 표현은 실제 값이 아니다.
 - 실제로 채워진 숫자, 날짜, 사업장명, 성명, 금액, 체크 표시가 없으면 해당 summary 값은 "기재 없음"으로 쓴다.
 - 하지만 괄호 안이나 빈칸 자리에 숫자/문자가 채워져 있으면, 그 값이 이상하더라도 "기재 없음"이라고 쓰지 않는다. 그 값을 그대로 summary 에 넣고 cautionItems 에 "비정상 값 확인 필요" 성격의 항목을 넣는다.
-- 예: "월 통상임금(100)원"은 미기재가 아니라 "월 통상임금 100원"으로 기재된 것이다. 임금이 매우 낮아 보이므로 "임금 비정상 기재"로 확인 필요 표시한다.
-- 예: "100시 35분 ~ 00시 30분"은 미기재가 아니라 비정상 근무시간 값이다. summary 에 해당 값을 넣고 "근무시간 비정상 기재"로 확인 필요 표시한다.
-- 예: "2026년 13월 40일"처럼 불가능한 날짜도 미기재가 아니라 비정상 날짜 값이다.
+- 금액이 비정상적으로 낮아 보이면 실제 기재값을 그대로 요약하고 "임금 비정상 기재" 성격의 확인 항목을 만든다.
+- 시간 표현이 24시간제 범위를 벗어나거나 시작/종료가 뒤섞여 보이면 실제 기재값을 그대로 요약하고 "근무시간 비정상 기재" 성격의 확인 항목을 만든다.
+- 날짜가 달력상 불가능해 보이는 경우도 미기재가 아니라 비정상 날짜 값으로 보고 실제 기재값 확인을 안내한다.
 - OCR 이 불명확해서 실제 값인지 확신할 수 없으면, OCR 에 보이는 값을 그대로 쓰되 "OCR 확인 필요"라고 표시한다. 값을 추측해서 정상값으로 고치지 않는다.
 - 빈 양식에서 필수 항목이 채워지지 않았으면 cautionItems 에 "필수 항목 미기재" 성격의 항목을 넣는다.
 - 빈 양식 자체를 분석한 경우, notice 에 "이 문서는 실제 계약값이 거의 기재되지 않은 양식으로 보입니다" 라는 의미를 포함한다.
@@ -241,6 +244,8 @@ targetLanguage: {target_language} ({language_name})
 - localized object 는 반드시 {localized} 형식처럼 target language 필드만 포함한다.
 - cautionItems 는 입력과 같은 개수({item_count}개), 같은 순서로 작성한다.
 - cautionItems 각 항목은 title 과 explanation 만 포함한다.
+- summary 5개 항목, 모든 cautionItems 의 title/explanation, notice 의 {target_language} 값을 빠짐없이 채운다. 어떤 값도 빈 문자열("")로 두지 않는다.
+- {target_language}({language_name}) 가 번역하기 어려운 언어라도 그 언어로 자연스럽게 작성하고, 영어나 한국어로 대체하지 않는다.
 
 JSON 형식:
 {{"targetLanguage": "{target_language}", "summary": {{"salary": {localized}, "workHours": {localized}, "holiday": {localized}, "contractPeriod": {localized}, "deduction": {localized}}}, "cautionItems": [{{"title": {localized}, "explanation": {localized}}}], "notice": {localized}}}
@@ -395,6 +400,39 @@ def analyze(
         raise RuntimeError(f"AI analysis failed: {exc}") from exc
 
 
+def _localization_retry_reminder(target_language: str) -> str:
+    language_name = LANGUAGE_NAMES.get(target_language, target_language)
+    return (
+        "\n\n[재시도 안내]\n"
+        f"- 직전 응답에서 일부 {target_language}({language_name}) 값이 비어 있거나 누락되었다.\n"
+        f"- 이번에는 summary, cautionItems, notice 의 모든 {target_language} 필드를 빠짐없이 채운다.\n"
+        "- 어떤 값도 빈 문자열로 두지 않고, 영어나 한국어로 대체하지 않는다."
+    )
+
+
+def _localize_with_retry(
+    call_model,
+    target_language: str,
+    expected_caution_count: int,
+    max_attempts: int = LOCALIZE_MAX_ATTEMPTS,
+) -> LocalizedAnalysisPatch:
+    """call_model(attempt) 가 돌려준 JSON 을 파싱·검증하고, 실패하면 재시도한다.
+
+    저자원 언어에서 모델이 target 값을 비우는 경우가 있어, 빈 값/누락 검증 실패 시
+    재시도한다. 모든 시도가 실패하면 마지막 오류를 RuntimeError 로 올린다.
+    """
+    last_error: Optional[Exception] = None
+    for attempt in range(max_attempts):
+        try:
+            content = call_model(attempt) or "{}"
+            patch = LocalizedAnalysisPatch(**json.loads(content))
+            _validate_localization_patch(patch, target_language, expected_caution_count)
+            return patch
+        except Exception as exc:
+            last_error = exc
+    raise RuntimeError(f"AI localization failed: {last_error}")
+
+
 def localize_analysis(analysis: AnalysisResult, target_language: str) -> LocalizedAnalysisPatch:
     """기존 분석 결과에서 target language 필드만 생성한다."""
     if not config.USE_REAL_AI:
@@ -404,18 +442,23 @@ def localize_analysis(analysis: AnalysisResult, target_language: str) -> Localiz
         from openai import OpenAI
 
         client = OpenAI(api_key=config.OPENAI_API_KEY)
+    except Exception as exc:
+        raise RuntimeError(f"AI localization failed: {exc}") from exc
+
+    base_prompt = _build_localization_user_prompt(analysis, target_language)
+
+    def call_model(attempt: int) -> str:
+        # 재시도에서는 빈 값 금지를 다시 강조하고 temperature 를 살짝 올려 변화를 준다.
+        user_prompt = base_prompt if attempt == 0 else base_prompt + _localization_retry_reminder(target_language)
         completion = client.chat.completions.create(
             model=config.OPENAI_MODEL,
             response_format={"type": "json_object"},
-            temperature=0.2,
+            temperature=0.2 if attempt == 0 else 0.4,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_localization_user_prompt(analysis, target_language)},
+                {"role": "user", "content": user_prompt},
             ],
         )
-        content = completion.choices[0].message.content or "{}"
-        patch = LocalizedAnalysisPatch(**json.loads(content))
-        _validate_localization_patch(patch, target_language, len(analysis.cautionItems))
-        return patch
-    except Exception as exc:
-        raise RuntimeError(f"AI localization failed: {exc}") from exc
+        return completion.choices[0].message.content or "{}"
+
+    return _localize_with_retry(call_model, target_language, len(analysis.cautionItems))
