@@ -1,7 +1,7 @@
 ﻿import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,21 +9,27 @@ import { localizeAnalysis } from '@/api/contractApi';
 import { CautionCard } from '@/components/CautionCard';
 import { LanguageTabs } from '@/components/LanguageTabs';
 import { SummaryCard } from '@/components/SummaryCard';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, levelColors, radius, spacing } from '@/constants/theme';
 import * as historyStore from '@/data/historyStore';
 import { analysisHasLanguage, mergeLocalizedAnalysisPatch } from '@/data/localizationMerge';
 import type { CautionItem } from '@/data/sampleAnalysis';
 import { session } from '@/data/session';
 import { containRect, expandRect, sourceBoxToRect, type Size } from '@/data/sourceLayout';
+import { collectPageSourceItems, collectSourceItems, findDefaultSourceItem } from '@/data/sourceViewer';
 import { DEFAULT_LANGUAGE, type AppLanguage } from '@/i18n/languages';
 import { getLocalized } from '@/i18n/localized';
 import { useI18n } from '@/i18n/useI18n';
 
 type SourceViewer = {
-  uri: string;
-  item?: CautionItem;
   pageIndex: number;
+  selectedItem: CautionItem | null;
 };
+
+function sourceOverlayFill(level: CautionItem['level'], isSelected: boolean): string {
+  if (level === 'check') return isSelected ? 'rgba(224, 49, 49, 0.22)' : 'rgba(224, 49, 49, 0.11)';
+  if (level === 'review') return isSelected ? 'rgba(232, 89, 12, 0.22)' : 'rgba(232, 89, 12, 0.11)';
+  return isSelected ? 'rgba(49, 130, 246, 0.22)' : 'rgba(49, 130, 246, 0.11)';
+}
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -37,7 +43,11 @@ export default function ResultScreen() {
   const [viewerCurrentPage, setViewerCurrentPage] = useState(0);
   const [viewerImageSize, setViewerImageSize] = useState<Size | null>(null);
   const [viewerStageSize, setViewerStageSize] = useState<Size>({ width: 0, height: 0 });
+  const [sourcePanelWidth, setSourcePanelWidth] = useState(0);
   const viewerScrollRef = useRef<ScrollView>(null);
+  const sourcePanelScrollRef = useRef<ScrollView>(null);
+  const viewerImageDragRef = useRef(false);
+  const sourcePanelDragRef = useRef(false);
   const { width: windowWidth } = useWindowDimensions();
   const [localizingLanguage, setLocalizingLanguage] = useState<AppLanguage | null>(null);
   const [localizationError, setLocalizationError] = useState<{ language: AppLanguage; message: string } | null>(null);
@@ -46,23 +56,37 @@ export default function ResultScreen() {
   const tr = t.result;
   useEffect(() => { if (id) historyStore.get(id).then((r) => (r ? setRecord(r) : router.back())); }, [id, router]);
 
+  const data = fromHistory ? record?.result : sessionResult;
+  const imageUris = fromHistory && record ? historyStore.pageUris(record) : session.getImages();
+  const languageReady = data ? analysisHasLanguage(data, language) : true;
+  const displayLanguage = languageReady ? language : DEFAULT_LANGUAGE;
+  const viewerImageUri = viewer ? imageUris[viewerCurrentPage] : null;
+  const renderedImageRect = viewerImageSize ? containRect(viewerStageSize, viewerImageSize) : null;
+  const sourceItems = useMemo(() => (data ? collectSourceItems(data.cautionItems) : []), [data]);
+  const viewerPageItems = useMemo(
+    () => (viewer && data ? collectPageSourceItems(data.cautionItems, viewerCurrentPage) : []),
+    [data, viewer, viewerCurrentPage],
+  );
+  const selectedViewerItem = !viewer
+    ? null
+    : viewer.selectedItem && sourceItems.some((entry) => entry.item === viewer.selectedItem)
+      ? viewer.selectedItem
+      : (viewerPageItems[0]?.item ?? sourceItems[0]?.item ?? null);
+
   useEffect(() => {
-    if (!viewer) {
+    if (!viewerImageUri) {
       setViewerImageSize(null);
       return;
     }
     let cancelled = false;
+    setViewerImageSize(null);
     RNImage.getSize(
-      viewer.uri,
+      viewerImageUri,
       (width, height) => { if (!cancelled) setViewerImageSize({ width, height }); },
       () => { if (!cancelled) setViewerImageSize(null); },
     );
     return () => { cancelled = true; };
-  }, [viewer]);
-
-  const data = fromHistory ? record?.result : sessionResult;
-  const languageReady = data ? analysisHasLanguage(data, language) : true;
-  const displayLanguage = languageReady ? language : DEFAULT_LANGUAGE;
+  }, [viewerImageUri]);
 
   useEffect(() => {
     if (!data || languageReady || localizingRef.current === language || failedLocalizationRef.current === language) return;
@@ -102,11 +126,18 @@ export default function ResultScreen() {
   }, [data, fromHistory, language, languageReady, record]);
 
   useEffect(() => {
-    if (!viewer) return;
+    if (viewer?.pageIndex == null) return;
     const page = viewer.pageIndex;
     const w = viewerStageSize.width || windowWidth;
     viewerScrollRef.current?.scrollTo({ x: page * w, animated: false });
-  }, [viewer, viewerStageSize.width, windowWidth]);
+  }, [viewer?.pageIndex, viewerStageSize.width, windowWidth]);
+
+  useEffect(() => {
+    if (!selectedViewerItem || sourcePanelWidth <= 0) return;
+    const index = sourceItems.findIndex((entry) => entry.item === selectedViewerItem);
+    if (index < 0) return;
+    sourcePanelScrollRef.current?.scrollTo({ x: index * sourcePanelWidth, animated: true });
+  }, [selectedViewerItem, sourceItems, sourcePanelWidth]);
 
   // 기록 로딩 중엔 직전 분석(session)이 한 프레임 보이는 깜빡임 방지 (모든 훅 선언 뒤에 위치)
   if (fromHistory && !record) {
@@ -124,7 +155,6 @@ export default function ResultScreen() {
     );
   }
 
-  const imageUris = fromHistory ? historyStore.pageUris(record!) : session.getImages();
   const meta = fromHistory ? { isSample: !!record!.isSample, error: null } : session.getResultMeta();
   const isSample = meta.isSample || !!data!.isSample;
   const isLocalizing = !languageReady && localizingLanguage === language;
@@ -132,16 +162,15 @@ export default function ResultScreen() {
   const openSourceViewer = (item: CautionItem) => {
     const source = item.source;
     if (!source || source.confidence === 'low') return;
-    const uri = imageUris[source.pageIndex];
-    if (!uri) return;
-    setViewer({ uri, item, pageIndex: source.pageIndex });
+    if (!imageUris[source.pageIndex]) return;
+    setViewer({ selectedItem: item, pageIndex: source.pageIndex });
     setViewerCurrentPage(source.pageIndex);
   };
-
-  const renderedImageRect = viewerImageSize ? containRect(viewerStageSize, viewerImageSize) : null;
-  const viewerBoxes = viewerCurrentPage === viewer?.pageIndex
-    ? (viewer?.item?.source?.boxes.filter((box) => box.pageIndex === viewerCurrentPage) ?? [])
-    : [];
+  const openImageViewer = (pageIndex: number) => {
+    if (!imageUris[pageIndex]) return;
+    setViewer({ pageIndex, selectedItem: findDefaultSourceItem(data!.cautionItems, pageIndex) });
+    setViewerCurrentPage(pageIndex);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -225,7 +254,7 @@ export default function ResultScreen() {
             <Text style={styles.sectionTitle}>{tr.originalImages(imageUris.length)}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
               {imageUris.map((uri, i) => (
-                <Pressable key={uri + i} onPress={() => { setViewer({ uri, pageIndex: i }); setViewerCurrentPage(i); }}>
+                <Pressable key={uri + i} onPress={() => openImageViewer(i)}>
                   <Image source={{ uri }} style={styles.originalThumb} contentFit="cover" />
                 </Pressable>
               ))}
@@ -240,7 +269,7 @@ export default function ResultScreen() {
             <Pressable onPress={() => setViewer(null)} hitSlop={10} style={styles.viewerClose}>
               <Feather name="x" size={22} color="#fff" />
             </Pressable>
-            <Text style={styles.viewerTitle}>{viewer?.item ? tr.sourceViewerTitle : tr.originalImages(imageUris.length)}</Text>
+            <Text style={styles.viewerTitle}>{viewerPageItems.length > 0 ? tr.sourceViewerTitle : tr.originalImages(imageUris.length)}</Text>
             <Text style={styles.viewerPage}>{viewer ? `${viewerCurrentPage + 1}/${imageUris.length}` : ''}</Text>
           </View>
 
@@ -252,39 +281,115 @@ export default function ResultScreen() {
             scrollEventThrottle={16}
             style={styles.viewerCarousel}
             onLayout={(e) => setViewerStageSize(e.nativeEvent.layout)}
+            onScrollBeginDrag={() => { viewerImageDragRef.current = true; }}
             onMomentumScrollEnd={(e) => {
               const w = viewerStageSize.width || windowWidth;
               const page = Math.round(e.nativeEvent.contentOffset.x / w);
-              setViewerCurrentPage(page);
+              const isUserDrag = viewerImageDragRef.current;
+              const nextPage = isUserDrag ? page : (viewer?.pageIndex ?? page);
+              setViewerCurrentPage(nextPage);
+              if (isUserDrag) {
+                const nextPageItems = data ? collectPageSourceItems(data.cautionItems, page) : [];
+                setViewer((prev) => (prev ? { ...prev, pageIndex: page, selectedItem: nextPageItems[0]?.item ?? null } : prev));
+              }
+              viewerImageDragRef.current = false;
             }}
           >
             {imageUris.map((uri, i) => (
-              <Pressable
+              <View
                 key={`slide-${i}`}
                 style={[styles.viewerSlide, { width: viewerStageSize.width || windowWidth }]}
-                onPress={() => setViewer(null)}
               >
                 <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
-                {i === viewer?.pageIndex && renderedImageRect && viewerBoxes.map((box, index) => {
-                  const rect = expandRect(sourceBoxToRect(box, renderedImageRect), renderedImageRect, {
-                    horizontal: 8,
-                    vertical: 7,
-                  });
-                  return <View key={`${box.pageIndex}-${index}`} pointerEvents="none" style={[styles.sourceHighlight, rect]} />;
-                })}
-              </Pressable>
+                {i === viewerCurrentPage && renderedImageRect && viewerPageItems.map((entry, itemIndex) => (
+                  entry.boxes.map((box, boxIndex) => {
+                    const isSelected = entry.item === selectedViewerItem;
+                    const rect = expandRect(sourceBoxToRect(box, renderedImageRect), renderedImageRect, {
+                      horizontal: isSelected ? 14 : 8,
+                      vertical: isSelected ? 11 : 7,
+                    });
+                    const level = levelColors[entry.item.level].fg;
+                    const fill = sourceOverlayFill(entry.item.level, isSelected);
+                    return (
+                      <Pressable
+                        key={`${box.pageIndex}-${itemIndex}-${boxIndex}`}
+                        hitSlop={6}
+                        onPress={() => setViewer((prev) => (prev ? { ...prev, selectedItem: entry.item } : prev))}
+                        style={[
+                          styles.sourceHighlight,
+                          isSelected ? styles.sourceHighlightActive : styles.sourceHighlightInactive,
+                          rect,
+                          { borderColor: level, backgroundColor: fill, shadowColor: level },
+                        ]}
+                      >
+                        <View
+                          pointerEvents="none"
+                          style={[
+                            styles.sourceNumberBadge,
+                            isSelected ? styles.sourceNumberBadgeActive : styles.sourceNumberBadgeInactive,
+                            { borderColor: level, backgroundColor: isSelected ? level : 'rgba(255,255,255,0.92)' },
+                          ]}
+                        >
+                          <Text style={[styles.sourceNumberText, { color: isSelected ? '#fff' : level }]}>
+                            {entry.number}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                ))}
+              </View>
             ))}
           </ScrollView>
 
-          {viewer?.item && (
-            <View style={styles.sourcePanel}>
-              <Text style={styles.sourcePanelTitle}>{getLocalized(viewer.item.title, displayLanguage)}</Text>
-              <Text style={styles.sourcePanelLabel}>{tr.sourceQuoteLabel}</Text>
-              <Text style={styles.sourcePanelQuote}>"{viewer.item.source?.quote ?? viewer.item.originalText}"</Text>
-              <Text style={styles.sourcePanelHint}>
-                {viewer.item.source?.confidence === 'medium' ? tr.sourceLowConfidence : tr.sourceUsedHint}
-              </Text>
-              <Text style={styles.sourcePanelExplanation}>{getLocalized(viewer.item.explanation, displayLanguage)}</Text>
+          {sourceItems.length > 0 && (
+            <View
+              style={styles.sourcePanelPager}
+              onLayout={(e) => setSourcePanelWidth(e.nativeEvent.layout.width)}
+            >
+              <ScrollView
+                ref={sourcePanelScrollRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                scrollEventThrottle={16}
+                style={styles.sourcePanelScroll}
+                onScrollBeginDrag={() => { sourcePanelDragRef.current = true; }}
+                onMomentumScrollEnd={(e) => {
+                  if (!sourcePanelDragRef.current) return;
+                  const width = sourcePanelWidth || windowWidth;
+                  const index = Math.round(e.nativeEvent.contentOffset.x / width);
+                  const entry = sourceItems[index];
+                  if (entry) {
+                    setViewer((prev) => (prev ? { ...prev, pageIndex: entry.pageIndex, selectedItem: entry.item } : prev));
+                    setViewerCurrentPage(entry.pageIndex);
+                  }
+                  sourcePanelDragRef.current = false;
+                }}
+              >
+                {sourceItems.map((entry) => {
+                  const panelColor = levelColors[entry.item.level].fg;
+                  return (
+                    <View
+                      key={`panel-${entry.number}`}
+                      style={[styles.sourcePanel, { width: sourcePanelWidth || windowWidth - spacing.md * 2 }]}
+                    >
+                      <View style={styles.sourcePanelTitleRow}>
+                        <View style={[styles.sourcePanelNumber, { backgroundColor: panelColor }]}>
+                          <Text style={styles.sourcePanelNumberText}>{entry.number}</Text>
+                        </View>
+                        <Text style={styles.sourcePanelTitle}>{getLocalized(entry.item.title, displayLanguage)}</Text>
+                      </View>
+                      <Text style={styles.sourcePanelLabel}>{tr.sourceQuoteLabel}</Text>
+                      <Text style={styles.sourcePanelQuote}>"{entry.item.source?.quote ?? entry.item.originalText}"</Text>
+                      <Text style={[styles.sourcePanelHint, { color: panelColor }]}>
+                        {entry.item.source?.confidence === 'medium' ? tr.sourceLowConfidence : tr.sourceUsedHint}
+                      </Text>
+                      <Text style={styles.sourcePanelExplanation}>{getLocalized(entry.item.explanation, displayLanguage)}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -335,17 +440,53 @@ const styles = StyleSheet.create({
   viewerSlide: { flex: 1, overflow: 'hidden' },
   sourceHighlight: {
     position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(49, 130, 246, 0.12)',
     borderRadius: 7,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.18,
     shadowRadius: 7,
     shadowOffset: { width: 0, height: 2 },
   },
-  sourcePanel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.lg, gap: 6, marginTop: spacing.md, marginHorizontal: spacing.md },
-  sourcePanelTitle: { fontSize: 15, fontWeight: '900', color: colors.text },
+  sourceHighlightActive: {
+    borderWidth: 2.5,
+    shadowOpacity: 0.22,
+    zIndex: 3,
+  },
+  sourceHighlightInactive: {
+    borderWidth: 1.5,
+    shadowOpacity: 0.12,
+    zIndex: 1,
+  },
+  sourceNumberBadge: {
+    position: 'absolute',
+    top: -11,
+    left: -11,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+  },
+  sourceNumberBadgeActive: {
+    borderWidth: 0,
+  },
+  sourceNumberBadgeInactive: {
+    borderWidth: 1.5,
+  },
+  sourceNumberText: { fontSize: 12, fontWeight: '900' },
+  sourcePanelPager: { marginTop: spacing.md, marginHorizontal: spacing.md },
+  sourcePanelScroll: { borderRadius: radius.lg },
+  sourcePanel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.lg, gap: 6 },
+  sourcePanelTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sourcePanelNumber: {
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: colors.text,
+  },
+  sourcePanelNumberText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  sourcePanelTitle: { flex: 1, fontSize: 15, fontWeight: '900', color: colors.text, lineHeight: 20 },
   sourcePanelLabel: { fontSize: 11, fontWeight: '800', color: colors.textTertiary, marginTop: 4 },
   sourcePanelQuote: { fontSize: 13, color: colors.textSecondary, lineHeight: 20, fontWeight: '700' },
   sourcePanelHint: { fontSize: 12, color: colors.primary, lineHeight: 18, fontWeight: '800' },
