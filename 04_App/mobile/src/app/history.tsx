@@ -184,6 +184,9 @@ export default function HistoryScreen() {
                       <Text style={styles.rowDate}>{formatDate(r.createdAt)}</Text>
                       {r.isSample && <Text style={styles.sampleBadge}>{t.history.sample}</Text>}
                     </View>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {historyStore.displayTitle(r)}
+                    </Text>
                     <Text style={styles.rowSummary} numberOfLines={1}>
                       {getLocalized(r.result.summary.contractPeriod, language)} · {getLocalized(r.result.summary.salary, language)}
                     </Text>
@@ -236,7 +239,8 @@ const styles = StyleSheet.create({
   rowDate: { fontSize: 12, color: colors.textTertiary, fontWeight: '600' },
   sampleBadge: { fontSize: 10, fontWeight: '800', color: colors.textSecondary, backgroundColor: colors.bgElevated,
     paddingHorizontal: 6, paddingVertical: 1, borderRadius: 5, overflow: 'hidden' },
-  rowSummary: { fontSize: 14, color: colors.text, fontWeight: '700' },
+  rowTitle: { fontSize: 14, color: colors.text, fontWeight: '800' },
+  rowSummary: { fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
   rowCaution: { fontSize: 12, color: colors.primary, fontWeight: '700' },
   swipeDelete: { width: 88, backgroundColor: '#E5484D', alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: radius.lg, marginLeft: spacing.sm },
   swipeDeleteText: { color: colors.white, fontSize: 12, fontWeight: '700' },

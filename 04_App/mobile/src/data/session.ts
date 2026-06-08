@@ -4,6 +4,7 @@ import { sampleAnalysis, type AnalysisResult } from '@/data/sampleAnalysis';
 
 let pendingImages: string[] = [];
 let pendingContractType: ContractType = DEFAULT_CONTRACT_TYPE;
+let pendingRecordTitle = '';
 let lastResult: AnalysisResult = sampleAnalysis;
 let lastIsSample = true;
 let lastError: string | null = null;
@@ -13,6 +14,8 @@ export const session = {
   getImages(): string[] { return pendingImages; },
   setContractType(value: ContractType) { pendingContractType = normalizeContractType(value); },
   getContractType(): ContractType { return pendingContractType; },
+  setRecordTitle(value: string) { pendingRecordTitle = value; },
+  getRecordTitle(): string { return pendingRecordTitle; },
   setResult(result: AnalysisResult, meta: { isSample?: boolean; error?: string | null } = {}) {
     lastResult = result;
     lastIsSample = meta.isSample ?? !!result.isSample;

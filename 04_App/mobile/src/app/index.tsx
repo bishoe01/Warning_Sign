@@ -79,10 +79,10 @@ export default function HomeScreen() {
               </View>
               <View style={styles.recentBody}>
                 <Text style={styles.recentMain} numberOfLines={1}>
-                  {getLocalized(latest.result.summary.salary, language)}
+                  {historyStore.displayTitle(latest)}
                 </Text>
                 <Text style={styles.recentMeta}>
-                  {t.home.pages(latest.imageFiles.length || 1)} · {t.home.cautions(latest.result.cautionItems.length)}
+                  {getLocalized(latest.result.summary.salary, language)} · {t.home.cautions(latest.result.cautionItems.length)}
                 </Text>
               </View>
               <Feather name="chevron-right" size={18} color={colors.textTertiary} />

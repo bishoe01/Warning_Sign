@@ -38,6 +38,9 @@ export type Translation = {
     cameraPermission: string;
     contractTypeTitle: string;
     contractTypeHint: string;
+    recordTitleLabel: string;
+    recordTitlePlaceholder: string;
+    recordTitleHint: string;
     contractTypes: {
       manufacturingConstructionService: string;
       agricultureLivestockFishery: string;
@@ -65,6 +68,10 @@ export type Translation = {
     sourceQuoteLabel: string;
     sourceUsedHint: string;
     sourceLowConfidence: string;
+    recordTitleLabel: string;
+    recordTitlePlaceholder: string;
+    recordTitleSave: string;
+    recordTitleSaved: string;
     deleteTitle: string;
     deleteMessage: string;
     sampleTitle: string;
@@ -139,6 +146,9 @@ const en: Translation = {
     cameraPermission: 'Camera permission',
     contractTypeTitle: 'Contract type',
     contractTypeHint: 'If the title looks different, we will mention it in the analysis.',
+    recordTitleLabel: 'Record title',
+    recordTitlePlaceholder: 'Example: June factory contract',
+    recordTitleHint: 'Optional. If blank, we will name it automatically.',
     contractTypes: {
       manufacturingConstructionService: 'Manufacturing, construction, service',
       agricultureLivestockFishery: 'Agriculture, livestock, fishery',
@@ -166,6 +176,10 @@ const en: Translation = {
     sourceQuoteLabel: 'OCR text',
     sourceUsedHint: 'This part was used for the analysis.',
     sourceLowConfidence: 'The OCR position may not be exact. Please compare it with the original text.',
+    recordTitleLabel: 'Record title',
+    recordTitlePlaceholder: 'Name this analysis',
+    recordTitleSave: 'Save',
+    recordTitleSaved: 'Saved',
     deleteTitle: 'Delete',
     deleteMessage: 'Delete this analysis record?',
     sampleTitle: 'Sample result',
@@ -312,6 +326,9 @@ function makeSimple(c: SimpleCopy): Translation {
       cameraPermission: c.cameraPermission,
       contractTypeTitle: 'Contract type',
       contractTypeHint: 'If the title looks different, we will mention it in the analysis.',
+      recordTitleLabel: 'Record title',
+      recordTitlePlaceholder: 'Example: June factory contract',
+      recordTitleHint: 'Optional. If blank, we will name it automatically.',
       contractTypes: {
         manufacturingConstructionService: 'Manufacturing, construction, service',
         agricultureLivestockFishery: 'Agriculture, livestock, fishery',
@@ -339,6 +356,10 @@ function makeSimple(c: SimpleCopy): Translation {
       sourceQuoteLabel: 'OCR text',
       sourceUsedHint: 'This part was used for the analysis.',
       sourceLowConfidence: 'The OCR position may not be exact. Please compare it with the original text.',
+      recordTitleLabel: 'Record title',
+      recordTitlePlaceholder: 'Name this analysis',
+      recordTitleSave: 'Save',
+      recordTitleSaved: 'Saved',
       deleteTitle: c.deleteTitle,
       deleteMessage: c.deleteMessage,
       sampleTitle: c.sampleTitle,
@@ -1409,6 +1430,9 @@ export const translations: Record<AppLanguage, Translation> = {
       cameraPermission: '촬영 권한',
       contractTypeTitle: '계약서 종류',
       contractTypeHint: '계약서 제목이 다르면 분석 결과에서 다시 알려드릴게요.',
+      recordTitleLabel: '기록 이름',
+      recordTitlePlaceholder: '예: 6월 공장 계약서',
+      recordTitleHint: '선택 사항이에요. 비워 두면 자동으로 이름을 붙여요.',
       contractTypes: {
         manufacturingConstructionService: '제조·건설·서비스',
         agricultureLivestockFishery: '농축산·어업',
@@ -1436,6 +1460,10 @@ export const translations: Record<AppLanguage, Translation> = {
       sourceQuoteLabel: 'OCR 원문',
       sourceUsedHint: '이 부분을 근거로 분석했어요.',
       sourceLowConfidence: 'OCR 위치가 정확하지 않을 수 있어 원문을 함께 확인해 주세요.',
+      recordTitleLabel: '기록 이름',
+      recordTitlePlaceholder: '이 분석 기록 이름',
+      recordTitleSave: '저장',
+      recordTitleSaved: '저장됨',
       deleteTitle: '삭제',
       deleteMessage: '이 분석 기록을 지울까요?',
       sampleTitle: '샘플 결과',

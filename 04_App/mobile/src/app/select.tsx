@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, shadow, spacing } from '@/constants/theme';
@@ -52,6 +52,7 @@ export default function CaptureScreen() {
   const [frameW, setFrameW] = useState(0);
   const [frameH, setFrameH] = useState(0);
   const [contractType, setContractType] = useState<ContractType>(DEFAULT_CONTRACT_TYPE);
+  const [recordTitle, setRecordTitle] = useState('');
 
   const [focused, setFocused] = useState(true);
   useFocusEffect(
@@ -152,6 +153,7 @@ export default function CaptureScreen() {
     if (pages.length === 0) return;
     session.setImages(pages);
     session.setContractType(contractType);
+    session.setRecordTitle(recordTitle);
     router.push('/loading');
   };
 
@@ -355,6 +357,19 @@ export default function CaptureScreen() {
                 })}
               </View>
               <Text style={styles.contractTypeHint}>{t.select.contractTypeHint}</Text>
+            </View>
+            <View style={styles.recordTitleBox}>
+              <Text style={styles.contractTypeTitle}>{t.select.recordTitleLabel}</Text>
+              <TextInput
+                value={recordTitle}
+                onChangeText={setRecordTitle}
+                placeholder={t.select.recordTitlePlaceholder}
+                placeholderTextColor={colors.cameraTextDim}
+                maxLength={48}
+                returnKeyType="done"
+                style={styles.recordTitleInput}
+              />
+              <Text style={styles.contractTypeHint}>{t.select.recordTitleHint}</Text>
             </View>
             <Pressable
               style={({ pressed }) => [styles.analyzeButton, shadow.button, pressed && styles.pressed]}
@@ -564,6 +579,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.cameraTextDim,
     lineHeight: 16,
+  },
+  recordTitleBox: {
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: spacing.md,
+  },
+  recordTitleInput: {
+    minHeight: 42,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '800',
   },
   secondaryBtn: {
     flex: 1,
