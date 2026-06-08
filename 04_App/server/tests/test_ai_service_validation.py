@@ -40,7 +40,7 @@ GOLDEN_OCR_DIR = Path(__file__).parent / "golden_ocr"
 def make_analysis(original_text: str) -> AiAnalysis:
     return AiAnalysis(
         summary={
-            "salary": {"ko": "월 통상임금 100원", "en": "Monthly ordinary wage: 100 KRW", "vi": "Lương thông thường hằng tháng: 100 won"},
+            "salary": {"ko": "계약서에 적힌 임금", "en": "Wage written in the contract", "vi": "Tiền lương ghi trong hợp đồng"},
             "workHours": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
             "holiday": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
             "contractPeriod": {"ko": "기재 없음", "en": "Not written", "vi": "Không ghi"},
@@ -63,16 +63,52 @@ def make_analysis(original_text: str) -> AiAnalysis:
             "en": "This is guidance, not legal advice.",
             "vi": "Đây là hướng dẫn tham khảo, không phải tư vấn pháp lý.",
         },
+        )
+
+
+def make_localization_source() -> AiAnalysis:
+    return AiAnalysis(
+        summary={
+            "salary": {"ko": "계약서에 적힌 임금", "en": "Wage written in the contract", "vi": "Tiền lương ghi trong hợp đồng"},
+            "workHours": {"ko": "계약서에 적힌 근로시간", "en": "Work hours written in the contract", "vi": "Giờ làm việc ghi trong hợp đồng"},
+            "holiday": {"ko": "계약서에 적힌 휴일", "en": "Holiday written in the contract", "vi": "Ngày nghỉ ghi trong hợp đồng"},
+            "contractPeriod": {"ko": "계약서에 적힌 계약기간", "en": "Contract period written in the contract", "vi": "Thời hạn hợp đồng ghi trong hợp đồng"},
+            "deduction": {"ko": "계약서에 적힌 공제", "en": "Deduction written in the contract", "vi": "Khoản khấu trừ ghi trong hợp đồng"},
+        },
+        cautionItems=[
+            {
+                "level": "review",
+                "title": {"ko": "원문 확인 필요", "en": "Original text needs review", "vi": "Cần kiểm tra bản gốc"},
+                "originalText": "숙식비는 근로자와 사업주가 협의하여 정한다.",
+                "explanation": {
+                    "ko": "계약서 원문에 적힌 내용을 직접 확인해 보세요.",
+                    "en": "Check the wording written in the contract.",
+                    "vi": "Hãy kiểm tra nội dung ghi trong hợp đồng.",
+                },
+            }
+        ],
+        notice={
+            "ko": "법률 자문이 아니라 참고용 안내입니다.",
+            "en": "This is guidance, not legal advice.",
+            "vi": "Đây là hướng dẫn tham khảo, không phải tư vấn pháp lý.",
+        },
     )
 
 
 class AiServiceValidationTest(unittest.TestCase):
     def test_prompt_separates_explanation_language_from_korean_contract_standard(self):
-        prompt = _build_user_prompt("월 통상임금(100)원", "vi")
+        prompt = _build_user_prompt("근로계약기간: 2026년 6월 1일부터 2027년 5월 31일까지", "vi")
 
         self.assertIn("선택 언어는 설명 언어", prompt)
         self.assertIn("한국에서 사용하는 한국어 근로계약서", prompt)
         self.assertIn("다른 국가의 노동법", prompt)
+
+    def test_prompt_does_not_embed_demo_specific_abnormal_values(self):
+        prompt = _build_user_prompt("임금: 월 통상임금(      )원\n소정근로시간: 시 분 ~ 시 분", "vi")
+
+        self.assertNotIn("월 통상임금(100)원", prompt)
+        self.assertNotIn("100시", prompt)
+        self.assertNotIn("100시 35분", prompt)
 
     def test_prompt_includes_ocr_region_ids_for_source_grounding(self):
         prompt = _build_user_prompt(
@@ -153,7 +189,7 @@ class AiServiceValidationTest(unittest.TestCase):
         self.assertNotIn('"ko": ""', prompt)
 
     def test_localization_patch_requires_target_key_and_same_item_count(self):
-        source = make_analysis("월 통상임금(100)원")
+        source = make_localization_source()
         patch = LocalizedAnalysisPatch(
             targetLanguage="th",
             summary={
@@ -175,11 +211,11 @@ class AiServiceValidationTest(unittest.TestCase):
         _validate_localization_patch(patch, "th", len(source.cautionItems))
 
     def test_localization_patch_rejects_missing_target_key(self):
-        source = make_analysis("월 통상임금(100)원")
+        source = make_localization_source()
         patch = LocalizedAnalysisPatch(
             targetLanguage="th",
             summary={
-                "salary": {"en": "Monthly ordinary wage: 100 KRW"},
+                "salary": {"en": "Wage written in the contract"},
                 "workHours": {"th": "ไม่ได้ระบุ"},
                 "holiday": {"th": "ไม่ได้ระบุ"},
                 "contractPeriod": {"th": "ไม่ได้ระบุ"},
@@ -198,17 +234,17 @@ class AiServiceValidationTest(unittest.TestCase):
             _validate_localization_patch(patch, "th", len(source.cautionItems))
 
     def test_localization_prompt_forbids_empty_target_value(self):
-        analysis = make_analysis("월 통상임금(100)원")
+        analysis = make_localization_source()
         prompt = _build_localization_user_prompt(analysis, "tet")
 
         self.assertIn("빈 문자열", prompt)
         self.assertIn("영어나 한국어로 대체하지 않는다", prompt)
 
     def test_localize_retry_recovers_when_first_attempt_leaves_target_empty(self):
-        source = make_analysis("월 통상임금(100)원")
+        source = make_localization_source()
         responses = [
             _localization_content("tet", ""),  # 저자원 언어 빈 값 (실제 실패 케이스)
-            _localization_content("tet", "Salariu kada fulan 100 won"),
+            _localization_content("tet", "Salariu ne'ebe kontratu hakerek"),
         ]
         calls: list[int] = []
 
@@ -218,11 +254,11 @@ class AiServiceValidationTest(unittest.TestCase):
 
         patch = _localize_with_retry(call_model, "tet", len(source.cautionItems))
 
-        self.assertEqual(patch.summary.salary["tet"], "Salariu kada fulan 100 won")
+        self.assertEqual(patch.summary.salary["tet"], "Salariu ne'ebe kontratu hakerek")
         self.assertEqual(calls, [0, 1])
 
     def test_localize_retry_gives_up_after_max_attempts(self):
-        source = make_analysis("월 통상임금(100)원")
+        source = make_localization_source()
         calls: list[int] = []
 
         def call_model(attempt: int) -> str:
