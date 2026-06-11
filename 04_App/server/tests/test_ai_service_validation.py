@@ -119,6 +119,38 @@ class AiServiceValidationTest(unittest.TestCase):
         self.assertIn("OCR 확인 필요", prompt)
         self.assertIn("정상 시간으로 조용히 고치지 않는다", prompt)
 
+    def test_prompt_flags_long_daily_hours_with_low_hourly_wage_context(self):
+        prompt = _build_user_prompt(
+            "\n".join(
+                [
+                    "표준근로계약서",
+                    "소정근로시간: 06시 00분부터 23시 00분까지",
+                    "휴게시간: 12시 00분부터 13시 00분까지",
+                    "임금: 월 2,060,740원",
+                ]
+            ),
+            "ko",
+        )
+
+        self.assertIn("장시간 근로 정량 점검", prompt)
+        self.assertIn("하루 약 17.0시간", prompt)
+        self.assertIn("휴게시간 반영 후 약 16.0시간", prompt)
+        self.assertIn("주 5일만 가정해도 월 약 347.6시간", prompt)
+        self.assertIn("약 5,928원/시간", prompt)
+        self.assertIn("2026년 한국 최저임금 시간급 10,320원", prompt)
+        self.assertIn("임금 대비 근로시간 확인", prompt)
+
+    def test_prompt_flags_ten_year_contract_period_context(self):
+        prompt = _build_user_prompt(
+            "근로계약기간: 2026년 6월 1일부터 2036년 5월 31일까지",
+            "ko",
+        )
+
+        self.assertIn("장기 계약기간 정량 점검", prompt)
+        self.assertIn("약 10.0년", prompt)
+        self.assertIn("계약기간이 매우 길어 보입니다", prompt)
+        self.assertIn("장기 계약기간 확인", prompt)
+
     def test_prompt_includes_ocr_region_ids_for_source_grounding(self):
         prompt = _build_user_prompt(
             "소정근로시간: 시 분 ~ 시 분",

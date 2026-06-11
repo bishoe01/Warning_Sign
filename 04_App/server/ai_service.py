@@ -1,6 +1,7 @@
 """AI 분석. OpenAI Chat Completions(JSON 모드)로 OCR 텍스트를 구조화한다."""
 import json
 import re
+from datetime import date
 from typing import Optional, Union
 
 import config
@@ -45,8 +46,29 @@ SUPPORTED_CONTRACT_TYPES: set[str] = {
     "agriculture_livestock_fishery",
 }
 
+KOREA_MINIMUM_WAGE_YEAR = 2026
+KOREA_MINIMUM_HOURLY_WAGE_KRW = 10320
+KOREA_MINIMUM_MONTHLY_WAGE_209H_KRW = 2156880
+STANDARD_MONTHLY_HOURS = 209
+WEEKS_PER_MONTH = 4.345
+LONG_DAILY_WORK_HOURS = 12.0
+LONG_CONTRACT_MONTHS = 60
+
 WORK_HOUR_CONTEXT_RE = re.compile(r"(근로|근무|소정근로).{0,8}시간")
 HOUR_VALUE_RE = re.compile(r"(?P<value>\d{3,})\s*시")
+TIME_RANGE_RE = re.compile(
+    r"(?P<start_hour>\d{1,2})\s*시\s*(?P<start_minute>\d{1,2})?\s*분?\s*"
+    r"(?:부터|~|-|에서)\s*"
+    r"(?P<end_hour>\d{1,2})\s*시\s*(?P<end_minute>\d{1,2})?\s*분?\s*(?:까지)?"
+)
+MONEY_RE = re.compile(r"(?P<amount>\d{1,3}(?:,\d{3})+|\d{5,})\s*원")
+DATE_RANGE_RE = re.compile(
+    r"(?P<start_year>\d{4})\s*년\s*(?P<start_month>\d{1,2})\s*월\s*"
+    r"(?P<start_day>\d{1,2})?\s*일?\s*(?:부터|~|-|에서)\s*"
+    r"(?P<end_year>\d{4})\s*년\s*(?P<end_month>\d{1,2})\s*월\s*"
+    r"(?P<end_day>\d{1,2})?\s*일?\s*(?:까지)?"
+)
+EXPLICIT_YEAR_PERIOD_RE = re.compile(r"(?:계약기간|근로계약기간).{0,20}(?P<years>\d{1,2})\s*년")
 
 
 def normalize_contract_type(value: Optional[str]) -> ContractType:
@@ -115,6 +137,138 @@ def _possible_attached_hour(value: str) -> Optional[str]:
     return None
 
 
+def _format_krw(value: float) -> str:
+    return f"{int(round(value)):,}"
+
+
+def _parse_time_range_hours(text: str) -> Optional[tuple[int, int, float]]:
+    match = TIME_RANGE_RE.search(text)
+    if not match:
+        return None
+
+    start_hour = int(match.group("start_hour"))
+    start_minute = int(match.group("start_minute") or "0")
+    end_hour = int(match.group("end_hour"))
+    end_minute = int(match.group("end_minute") or "0")
+    if start_hour > 23 or end_hour > 23 or start_minute > 59 or end_minute > 59:
+        return None
+
+    start = start_hour * 60 + start_minute
+    end = end_hour * 60 + end_minute
+    if end < start:
+        end += 24 * 60
+    return start, end, (end - start) / 60
+
+
+def _parse_monthly_wage(ocr_text: str) -> Optional[int]:
+    for line in ocr_text.splitlines():
+        text = line.strip()
+        if not text or not any(keyword in text for keyword in ("임금", "월급", "통상임금")):
+            continue
+        match = MONEY_RE.search(text)
+        if match:
+            return int(match.group("amount").replace(",", ""))
+    return None
+
+
+def _parse_long_contract_years(ocr_text: str) -> Optional[float]:
+    for line in ocr_text.splitlines():
+        text = line.strip()
+        if not text or "계약기간" not in text:
+            continue
+
+        date_match = DATE_RANGE_RE.search(text)
+        if date_match:
+            try:
+                start_date = date(
+                    int(date_match.group("start_year")),
+                    int(date_match.group("start_month")),
+                    int(date_match.group("start_day") or "1"),
+                )
+                end_date = date(
+                    int(date_match.group("end_year")),
+                    int(date_match.group("end_month")),
+                    int(date_match.group("end_day") or "1"),
+                )
+            except ValueError:
+                continue
+            years = max((end_date - start_date).days / 365.25, 0)
+            if years >= LONG_CONTRACT_MONTHS / 12:
+                return years
+
+        year_match = EXPLICIT_YEAR_PERIOD_RE.search(text)
+        if year_match:
+            years = float(year_match.group("years"))
+            if years >= LONG_CONTRACT_MONTHS / 12:
+                return years
+
+    return None
+
+
+def _quantitative_context_notes(ocr_text: str) -> list[str]:
+    notes = []
+    work_range = None
+    rest_hours = 0.0
+
+    for line in ocr_text.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        parsed_range = _parse_time_range_hours(text)
+        if not parsed_range:
+            continue
+        if WORK_HOUR_CONTEXT_RE.search(text):
+            work_range = (text, parsed_range)
+        elif "휴게시간" in text:
+            rest_hours += parsed_range[2]
+
+    monthly_wage = _parse_monthly_wage(ocr_text)
+    if work_range:
+        work_line, (_, _, gross_hours) = work_range
+        net_hours = max(gross_hours - rest_hours, 0)
+        if gross_hours >= LONG_DAILY_WORK_HOURS or net_hours >= LONG_DAILY_WORK_HOURS:
+            note = (
+                "- 장시간 근로 정량 점검: "
+                f"`{work_line}`는 하루 약 {gross_hours:.1f}시간으로 보인다. "
+            )
+            if rest_hours:
+                note += f"휴게시간 반영 후 약 {net_hours:.1f}시간이다. "
+            note += (
+                "근무시간이 길어 보이면 '비정상 근로시간 확인'을 별도 cautionItem 으로 만들고, "
+                "연장·야간·휴일근로 수당 설명과 실제 근무표를 서명 전에 확인하라고 안내한다."
+            )
+            notes.append(note)
+
+            if monthly_wage and net_hours > 0:
+                estimated_monthly_hours = net_hours * 5 * WEEKS_PER_MONTH
+                estimated_hourly_wage = monthly_wage / estimated_monthly_hours
+                wage_gap = KOREA_MINIMUM_HOURLY_WAGE_KRW - estimated_hourly_wage
+                if estimated_hourly_wage < KOREA_MINIMUM_HOURLY_WAGE_KRW:
+                    notes.append(
+                        "- 임금 대비 근로시간 확인: "
+                        f"월 임금 {_format_krw(monthly_wage)}원을 휴게 반영 하루 {net_hours:.1f}시간 기준으로 보면, "
+                        f"주 5일만 가정해도 월 약 {estimated_monthly_hours:.1f}시간이다. "
+                        f"{_format_krw(monthly_wage)}원 ÷ {estimated_monthly_hours:.1f}시간 = "
+                        f"약 {_format_krw(estimated_hourly_wage)}원/시간으로, "
+                        f"{KOREA_MINIMUM_WAGE_YEAR}년 한국 최저임금 시간급 "
+                        f"{_format_krw(KOREA_MINIMUM_HOURLY_WAGE_KRW)}원보다 약 {_format_krw(wage_gap)}원 낮아 보인다. "
+                        f"참고로 {STANDARD_MONTHLY_HOURS}시간 기준 월 환산액은 "
+                        f"{_format_krw(KOREA_MINIMUM_MONTHLY_WAGE_209H_KRW)}원이다. "
+                        "법률 위반이라고 단정하지 말고, 실제 근무일수·휴게시간·연장/야간수당 포함 여부를 확인하라고 설명한다."
+                    )
+
+    long_contract_years = _parse_long_contract_years(ocr_text)
+    if long_contract_years:
+        notes.append(
+            "- 장기 계약기간 정량 점검: "
+            f"계약기간이 약 {long_contract_years:.1f}년으로 보인다. "
+            "계약기간이 매우 길어 보입니다. '장기 계약기간 확인'을 별도 cautionItem 으로 만들고, "
+            "중도퇴사 조건, 갱신 방식, 체류자격/고용허가 기간과 맞는지 상담기관 또는 담당자에게 확인하라고 안내한다."
+        )
+
+    return notes
+
+
 def _ocr_context_notes(ocr_text: str) -> str:
     notes = []
     for line in ocr_text.splitlines():
@@ -135,6 +289,8 @@ def _ocr_context_notes(ocr_text: str) -> str:
                 + "summary 에는 OCR에 보이는 값을 그대로 두되, cautionItems 에 원본 확인/OCR 확인 필요 항목을 만든다. "
                 + "정상 시간으로 조용히 고치지 않는다."
             )
+
+    notes.extend(_quantitative_context_notes(ocr_text))
 
     if not notes:
         return ""
@@ -203,14 +359,16 @@ def _build_user_prompt(
 
 [주의 조항 체크리스트]
 - 필수 기재 확인: 근로계약기간, 근무장소, 업무내용, 근로시간, 휴게시간, 휴일, 임금, 임금지급일, 지급방법, 숙식 제공/공제 여부가 빠졌는지 본다.
-- 임금 확인: 금액이 너무 낮아 보이거나, 기본급/수당/상여/수습기간 임금이 서로 모순되거나, 임금 항목이 비어 있으면 표시한다.
-- 근로시간 확인: 24시간제에서 불가능한 시간, 시작/종료 시간이 뒤섞인 값, 휴게시간 누락, 연장근로가 있는데 수당 설명이 없는 경우를 표시한다.
+- 계약기간 확인: 계약기간이 매우 길어 보이거나 일반적인 단기 고용계약으로 보기 어려우면 별도 cautionItem 으로 표시한다. 체류자격, 고용허가 기간, 중도퇴사 조건, 자동갱신 여부를 확인하라고 안내한다.
+- 임금 확인: 금액이 너무 낮아 보이거나, 기본급/수당/상여/수습기간 임금이 서로 모순되거나, 임금 항목이 비어 있으면 표시한다. 근무시간이 길고 월급이 낮아 보이면 월급만 보지 말고 시간당 환산 금액을 쉬운 말로 설명한다.
+- 근로시간 확인: 24시간제에서 불가능한 시간, 시작/종료 시간이 뒤섞인 값, 하루 근무시간이 매우 긴 값, 휴게시간 누락, 연장근로가 있는데 수당 설명이 없는 경우를 표시한다.
 - 휴일/휴게 확인: 주휴일, 공휴일 유급/무급, 휴게시간이 비어 있거나 매우 짧아 보이거나 사용자가 이해하기 어렵게 적힌 경우를 표시한다.
 - 공제/숙식비 확인: 숙식비, 기숙사비, 식비, 교육비, 기타 공제가 있는 경우 금액과 동의 여부를 확인 항목으로 표시한다. 특히 월 단위 공제 금액이 적혀 있으면 빠뜨리지 말고 cautionItems 에 넣는다.
 - 불리할 수 있는 조항 확인: 퇴사 시 교육비/위약금 반환, 무단결근 벌금, 여권/통장/도장 보관, 연장·야간·휴일수당 미지급, 임의 공제, 과도한 손해배상 같은 문구를 표시한다.
+- 정량 점검 메모 확인: [OCR 맥락 확인 메모]에 장시간 근로, 임금 대비 근로시간, 장기 계약기간 메모가 있으면 이를 반드시 별도 cautionItem 으로 만든다. 단, 법률 위반이라고 확정하지 않고 "실제 근무일수/휴게/수당 포함 여부 확인 필요"처럼 쓴다.
 - 출처 확인: 각 cautionItem 의 originalText 는 OCR 에 실제로 있는 문장을 짧게 인용한다. 사용자가 어디를 봐야 하는지 알 수 있어야 한다.
 - 개수: 관련 항목이 여러 개면 2개로 줄이지 말고 최대 8개까지 중요한 순서로 낸다. 필수항목 미기재와 비정상 값은 check, 불리할 수 있는 조항은 check 또는 review, 단순 안내는 info 로 둔다.
-- 반드시 별도 항목으로 내야 하는 것: 비정상 임금, 비정상 근로시간, 매우 짧은 휴게시간, 월 단위 숙식비/기숙사비/식비 공제, 퇴사 시 교육비/위약금 반환, 여권/통장/도장 보관, 연장·야간·휴일수당 미지급. 다른 큰 문제가 있어도 이 항목들을 합치거나 생략하지 않는다.
+- 반드시 별도 항목으로 내야 하는 것: 비정상 임금, 비정상 근로시간, 하루 장시간 근로, 임금 대비 근로시간 확인, 장기 계약기간 확인, 매우 짧은 휴게시간, 월 단위 숙식비/기숙사비/식비 공제, 퇴사 시 교육비/위약금 반환, 여권/통장/도장 보관, 연장·야간·휴일수당 미지급. 다른 큰 문제가 있어도 이 항목들을 합치거나 생략하지 않는다.
 
 [빈 양식/비정상 값 판단 규칙]
 - OCR 텍스트가 빈 표준근로계약서 양식이면, 양식의 라벨/단위/괄호를 실제 값처럼 쓰지 않는다.
