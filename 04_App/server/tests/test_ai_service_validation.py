@@ -110,6 +110,15 @@ class AiServiceValidationTest(unittest.TestCase):
         self.assertNotIn("100시", prompt)
         self.assertNotIn("100시 35분", prompt)
 
+    def test_prompt_flags_possible_attached_ocr_digit_in_work_hours(self):
+        prompt = _build_user_prompt("소정근로시간: 106시 00분부터 18시 00분까지", "ko")
+
+        self.assertIn("근로시간 줄에서 3자리 이상 시간값", prompt)
+        self.assertIn("106시", prompt)
+        self.assertIn("칸 번호", prompt)
+        self.assertIn("OCR 확인 필요", prompt)
+        self.assertIn("정상 시간으로 조용히 고치지 않는다", prompt)
+
     def test_prompt_includes_ocr_region_ids_for_source_grounding(self):
         prompt = _build_user_prompt(
             "소정근로시간: 시 분 ~ 시 분",

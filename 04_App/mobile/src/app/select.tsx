@@ -265,10 +265,10 @@ export default function CaptureScreen() {
                   </Pressable>
                 </>
               )}
-          <View style={[styles.corner, styles.cTL]} />
-          <View style={[styles.corner, styles.cTR]} />
-          <View style={[styles.corner, styles.cBL]} />
-          <View style={[styles.corner, styles.cBR]} />
+          <View pointerEvents="none" style={[styles.corner, styles.cTL]} />
+          <View pointerEvents="none" style={[styles.corner, styles.cTR]} />
+          <View pointerEvents="none" style={[styles.corner, styles.cBL]} />
+          <View pointerEvents="none" style={[styles.corner, styles.cBR]} />
         </View>
       </View>
 
@@ -471,6 +471,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
+    zIndex: 2,
     width: 34,
     height: 34,
     borderRadius: 17,

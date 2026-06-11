@@ -1,5 +1,6 @@
 """AI 분석. OpenAI Chat Completions(JSON 모드)로 OCR 텍스트를 구조화한다."""
 import json
+import re
 from typing import Optional, Union
 
 import config
@@ -43,6 +44,9 @@ SUPPORTED_CONTRACT_TYPES: set[str] = {
     "manufacturing_construction_service",
     "agriculture_livestock_fishery",
 }
+
+WORK_HOUR_CONTEXT_RE = re.compile(r"(근로|근무|소정근로).{0,8}시간")
+HOUR_VALUE_RE = re.compile(r"(?P<value>\d{3,})\s*시")
 
 
 def normalize_contract_type(value: Optional[str]) -> ContractType:
@@ -100,6 +104,44 @@ def _contract_type_prompt(contract_type: ContractType) -> str:
 - 지급방법, 통장·도장 관리 금지, 숙식비 부담금액을 확인한다."""
 
 
+def _possible_attached_hour(value: str) -> Optional[str]:
+    if len(value) < 3:
+        return None
+
+    suffix = value[-2:]
+    hour = int(suffix)
+    if 0 <= hour <= 23:
+        return suffix
+    return None
+
+
+def _ocr_context_notes(ocr_text: str) -> str:
+    notes = []
+    for line in ocr_text.splitlines():
+        text = line.strip()
+        if not text or not WORK_HOUR_CONTEXT_RE.search(text):
+            continue
+        suspicious_values = []
+        for match in HOUR_VALUE_RE.finditer(text):
+            value = match.group("value")
+            possible_hour = _possible_attached_hour(value)
+            if possible_hour:
+                suspicious_values.append(f"{value}시")
+        if suspicious_values:
+            notes.append(
+                "- 근로시간 줄에서 3자리 이상 시간값이 보인다: "
+                + ", ".join(suspicious_values)
+                + ". 칸 번호, 항목 번호, 인접 숫자, 표 테두리 글자가 실제 시간 앞에 붙은 OCR 오류일 수 있다. "
+                + "summary 에는 OCR에 보이는 값을 그대로 두되, cautionItems 에 원본 확인/OCR 확인 필요 항목을 만든다. "
+                + "정상 시간으로 조용히 고치지 않는다."
+            )
+
+    if not notes:
+        return ""
+
+    return "\n".join(notes)
+
+
 def _build_user_prompt(
     ocr_text: str,
     language: str,
@@ -111,6 +153,7 @@ def _build_user_prompt(
     localized = _localized_shape(response_languages)
     source_region_text = _ocr_region_prompt(source_regions)
     contract_type_instruction = _contract_type_prompt(contract_type)
+    ocr_context_notes = _ocr_context_notes(ocr_text)
     source_region_instruction = ""
     if source_region_text:
         source_region_instruction = f"""
@@ -147,6 +190,9 @@ def _build_user_prompt(
 - OCR 제목이나 양식명이 사용자가 선택한 계약서 유형과 달라 보이면 분석을 막지 않는다.
 - 그 경우 notice 또는 info/review 수준 cautionItem 에 "선택한 종류와 다를 수 있어요" 라는 의미를 넣는다.
 - 이 안내는 법률 판정처럼 쓰지 않는다. 계약서 제목과 선택한 종류가 다를 수 있으니 원본 제목을 다시 확인하라는 이해 보조로만 쓴다.
+
+[OCR 맥락 확인 메모]
+{ocr_context_notes or "- 별도 감지된 OCR 맥락 메모 없음."}
 
 [핵심 조건 추출 규칙]
 - 계약서에 실제로 적힌 값만 summary 에 쓴다.
